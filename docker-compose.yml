@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  seregela-loan-admin:
+    build: .
+    
+    # Map host's HOST_PORT to container's CONTAINER_PORT using .env
+    ports:
+      - "${HOST_PORT}:${CONTAINER_PORT}"
+
+    # Use the .env file to pass environment vars into container
+    env_file:
+      - .env
+
+    # Restart container automatically unless stopped manually
+    restart: unless-stopped
+
+    # Mount source code to container to allow live code editing
+    volumes:
+      - .:/app          # Mount Between HOST current directory  - & -  CONTAINER root directory
+      - /app/node_modules   #     # Only use volume mount in dev — if so, exclude node_modules to avoid overwriting
+      - /app/.next  # prevents host's (possibly empty) `.next` from overwriting container's build
+
+    environment:
+      - CHOKIDAR_USEPOLLING=true  # Required for file watching in Docker
+      - WATCHPACK_POLLING=true    # Additional file watching reliability
+    stdin_open: true  # Enable interactive mode
+    tty: true         # Allocate pseudo-TTY
+
+    networks:
+      - seregela-loan-admin-network
+
+networks:
+  seregela-loan-admin-network:
+    driver: bridge
