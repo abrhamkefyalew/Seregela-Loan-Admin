@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -10,13 +10,13 @@ interface User {
   user_name: string | null;
   first_name: string;
   last_name: string;
-  email: string;
+  email: string | null;
   phone_number: string;
   is_verified: number;
   email_verified_at: string | null;
   firebase_token: string | null;
   firebase_id: string;
-  cbe_birr_plus_token: string;
+  cbe_birr_plus_token: string | null;
   image: string | null;
   cover_photo: string | null;
   provider_id: string | null;
@@ -33,6 +33,17 @@ interface User {
   userable_type: string | null;
   userable_id: string | null;
   last_active_at: string | null;
+  loan_user?: {
+    id: number;
+    user_id: number;
+    loan_balance: string;
+    loan_cap: string;
+    is_approved: number;
+    approved_date: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+  };
 }
 
 interface LoanTransaction {
@@ -81,49 +92,52 @@ interface Loan {
 
 export default function Loans() {
   const router = useRouter();
+  const pathname = usePathname();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: Set<string> }>({});
+  const [approving, setApproving] = useState<{ [key: number]: boolean }>({});
+  const [approveForm, setApproveForm] = useState<{ [key: number]: { loan_amount: string; term_months: string; description: string; loan_cap: string } }>({});
   const [paginateCount, setPaginateCount] = useState(10);
-  const [phoneSearch, setPhoneSearch] = useState('');
-  const [nameSearch, setNameSearch] = useState('');
-  const [loanCodeSearch, setLoanCodeSearch] = useState('');
+  const [userIdSearch, setUserIdSearch] = useState('');
+  const [loanAmountSearch, setLoanAmountSearch] = useState('');
+  const [isApprovedSearch, setIsApprovedSearch] = useState('');
   const [statusSearch, setStatusSearch] = useState('');
+  const [descriptionSearch, setDescriptionSearch] = useState('');
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [navLoading, setNavLoading] = useState<{ [key: string]: boolean }>({
     loans: false,
-    users: false,
+    loan_users: false,
     products: false,
   });
+
+  // Map routes to nav items
+  const routeMap: { [key: string]: string } = {
+    '/': 'loans',
+    '/loan_users': 'loan_users',
+    '/products': 'products',
+  };
+  const currentRoute = routeMap[pathname] || '';
 
   const fetchData = useCallback(async (page = 1) => {
     const token = localStorage.getItem('authToken');
     if (!token) {
+      console.warn('No auth token found, redirecting to login');
       router.push('/login');
       return;
     }
 
     setLoading(true);
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/loans?page=${page}&per_page=${paginateCount}`;
+      let url = `https://api.seregelagebeya.com/api/v1/loans?page=${page}&per_page=${paginateCount}`;
       
-      if (phoneSearch) {
-        url += `&phone_number_search=${encodeURIComponent(phoneSearch)}`;
-      }
-      
-      if (nameSearch) {
-        url += `&name_search=${encodeURIComponent(nameSearch)}`;
-      }
-
-      if (loanCodeSearch) {
-        url += `&loan_code_search=${encodeURIComponent(loanCodeSearch)}`;
-      }
-
-      if (statusSearch) {
-        url += `&status_search=${encodeURIComponent(statusSearch)}`;
-      }
+      if (userIdSearch) url += `&user_id_search=${encodeURIComponent(userIdSearch)}`;
+      if (loanAmountSearch) url += `&loan_amount_search=${encodeURIComponent(loanAmountSearch)}`;
+      if (isApprovedSearch) url += `&is_approved_search=${encodeURIComponent(isApprovedSearch)}`;
+      if (statusSearch) url += `&status_search=${encodeURIComponent(statusSearch)}`;
+      if (descriptionSearch) url += `&description_search=${encodeURIComponent(descriptionSearch)}`;
 
       const res = await fetch(url, {
         headers: {
@@ -158,7 +172,7 @@ export default function Loans() {
     } finally {
       setLoading(false);
     }
-  }, [paginateCount, phoneSearch, nameSearch, loanCodeSearch, statusSearch, router]);
+  }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, router]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -175,7 +189,7 @@ export default function Loans() {
     return () => {
       clearTimeout(handler);
     };
-  }, [phoneSearch, nameSearch, loanCodeSearch, statusSearch, router]);
+  }, [userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, router]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -222,11 +236,26 @@ export default function Loans() {
   };
 
   const handleClearSearch = () => {
-    setPhoneSearch('');
-    setNameSearch('');
-    setLoanCodeSearch('');
+    setUserIdSearch('');
+    setLoanAmountSearch('');
+    setIsApprovedSearch('');
     setStatusSearch('');
+    setDescriptionSearch('');
     setSearchTrigger(prev => prev + 1);
+  };
+
+  const handleApproveToggle = (loanId: number) => {
+    toggleSection(loanId, 'approve');
+  };
+
+  const handleApproveFormChange = (loanId: number, field: string, value: string) => {
+    setApproveForm(prev => ({
+      ...prev,
+      [loanId]: {
+        ...prev[loanId] || { loan_amount: '', term_months: '', description: '', loan_cap: '' },
+        [field]: value,
+      },
+    }));
   };
 
   const handleApprove = async (loanId: number) => {
@@ -236,14 +265,44 @@ export default function Loans() {
       return;
     }
 
+    const formData = approveForm[loanId];
+    if (!formData || !formData.loan_amount || !formData.term_months || !formData.description || !formData.loan_cap) {
+      alert('Please fill all approval fields');
+      return;
+    }
+
+    if (isNaN(Number(formData.loan_amount)) || Number(formData.loan_amount) <= 0) {
+      alert('Loan amount must be a positive number');
+      return;
+    }
+
+    if (isNaN(Number(formData.term_months)) || Number(formData.term_months) <= 0 || !Number.isInteger(Number(formData.term_months))) {
+      alert('Term months must be a positive integer');
+      return;
+    }
+
+    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) <= 0) {
+      alert('Loan cap must be a positive number');
+      return;
+    }
+
+    setApproving(prev => ({ ...prev, [loanId]: true }));
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/loans/${loanId}/approve`, {
+      const form = new FormData();
+      form.append('_method', 'PUT');
+      form.append('loan_amount', formData.loan_amount);
+      form.append('repayment_rule[term_months]', formData.term_months);
+      form.append('description', formData.description);
+      form.append('loan_cap', formData.loan_cap);
+
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/loans/${loanId}/approve-loan`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
-          'Content-Type': 'application/json',
         },
+        body: form,
       });
 
       if (!res.ok) {
@@ -253,22 +312,53 @@ export default function Loans() {
         return;
       }
 
+      const json = await res.json();
+      const updatedLoan = json.data;
+
+      // Update the loan in the state
+      setLoans(prev =>
+        prev.map(loan =>
+          loan.id === loanId
+            ? {
+                ...loan,
+                ...updatedLoan,
+                user: {
+                  ...loan.user,
+                  ...updatedLoan.user,
+                  loan_user: updatedLoan.user?.loan_user || loan.user.loan_user,
+                },
+                loan_transactions: updatedLoan.loan_transactions || loan.loan_transactions,
+              }
+            : loan
+        )
+      );
+
+      // Clear form and collapse section
+      setApproveForm(prev => {
+        const { [loanId]: _, ...rest } = prev;
+        return rest;
+      });
+      toggleSection(loanId, 'approve');
+
       alert('Loan approved successfully');
-      fetchData(currentPage);
     } catch (e) {
       console.warn('Error approving loan:', e);
       alert('Error approving loan');
+    } finally {
+      setApproving(prev => ({ ...prev, [loanId]: false }));
     }
   };
 
   const handleNavClick = (route: string) => {
-    setNavLoading((prev) => ({ ...prev, [route]: true }));
+    if (routeMap[pathname] !== route) {
+      setNavLoading((prev) => ({ ...prev, [route]: true }));
+    }
   };
 
   const handleRefresh = () => {
-    setLoans([]); // Clear loans to show loading state
-    setMeta(null); // Clear meta data
-    fetchData(currentPage); // Trigger data refresh
+    setLoans([]);
+    setMeta(null);
+    fetchData(currentPage);
   };
 
   const renderValue = (value: any) => (value === null || value === undefined ? 'N/A' : value);
@@ -301,12 +391,15 @@ export default function Loans() {
               href="/"
               onClick={() => handleNavClick('loans')}
               className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                navLoading.loans
+                currentRoute === 'loans'
+                  ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400 cursor-not-allowed'
+                  : navLoading.loans
                   ? 'bg-blue-900 cursor-not-allowed'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900 underline'
+                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
               }`}
+              style={currentRoute === 'loans' ? { pointerEvents: 'none' } : {}}
             >
-              {navLoading.loans ? (
+              {navLoading.loans && currentRoute !== 'loans' ? (
                 <>
                   <span className="spinner mr-2" />
                   Loans
@@ -318,15 +411,18 @@ export default function Loans() {
           </li>
           <li>
             <Link
-              href="/users"
+              href="/loan_users"
               onClick={() => handleNavClick('users')}
               className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                navLoading.users
+                currentRoute === 'users'
+                  ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400 cursor-not-allowed'
+                  : navLoading.users
                   ? 'bg-blue-900 cursor-not-allowed'
                   : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
               }`}
+              style={currentRoute === 'users' ? { pointerEvents: 'none' } : {}}
             >
-              {navLoading.users ? (
+              {navLoading.users && currentRoute !== 'users' ? (
                 <>
                   <span className="spinner mr-2" />
                   Loan Users
@@ -341,12 +437,15 @@ export default function Loans() {
               href="/products"
               onClick={() => handleNavClick('products')}
               className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                navLoading.products
+                currentRoute === 'products'
+                  ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400 cursor-not-allowed'
+                  : navLoading.products
                   ? 'bg-blue-900 cursor-not-allowed'
                   : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
               }`}
+              style={currentRoute === 'products' ? { pointerEvents: 'none' } : {}}
             >
-              {navLoading.products ? (
+              {navLoading.products && currentRoute !== 'products' ? (
                 <>
                   <span className="spinner mr-2" />
                   Products
@@ -387,48 +486,64 @@ export default function Loans() {
 
       {/* Search Form */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow border border-blue-100">
-        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-blue-700 mb-1">Phone Number</label>
+            <label className="block text-sm font-medium text-blue-700 mb-1">User ID</label>
             <input
               type="text"
-              value={phoneSearch}
-              onChange={(e) => setPhoneSearch(e.target.value)}
+              value={userIdSearch}
+              onChange={(e) => setUserIdSearch(e.target.value)}
               className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter phone number"
+              placeholder="Enter user ID"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-blue-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-blue-700 mb-1">Loan Amount</label>
             <input
               type="text"
-              value={nameSearch}
-              onChange={(e) => setNameSearch(e.target.value)}
+              value={loanAmountSearch}
+              onChange={(e) => setLoanAmountSearch(e.target.value)}
               className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter name"
+              placeholder="Enter loan amount"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-blue-700 mb-1">Loan Code</label>
-            <input
-              type="text"
-              value={loanCodeSearch}
-              onChange={(e) => setLoanCodeSearch(e.target.value)}
+            <label className="block text-sm font-medium text-blue-700 mb-1">Is Approved</label>
+            <select
+              value={isApprovedSearch}
+              onChange={(e) => setIsApprovedSearch(e.target.value)}
               className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter loan code"
-            />
+            >
+              <option value="">Select</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-blue-700 mb-1">Status</label>
-            <input
-              type="text"
+            <select
               value={statusSearch}
               onChange={(e) => setStatusSearch(e.target.value)}
               className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter status"
+            >
+              <option value="">Select</option>
+              <option value="PAYMENT_NOT_COMPLETED">Payment Not Completed</option>
+              <option value="PAYMENT_COMPLETED">Payment Completed</option>
+              <option value="NOT_APPROVED">Not Approved</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-blue-700 mb-1">Description</label>
+            <input
+              type="text"
+              value={descriptionSearch}
+              onChange={(e) => setDescriptionSearch(e.target.value)}
+              className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter description"
             />
           </div>
 
@@ -484,20 +599,121 @@ export default function Loans() {
             return (
               <div key={loan.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
                 <div className="w-full min-w-0">
-                  {/* Approve Button */}
-                  <div className="mb-4 flex justify-end">
+                  {/* Approve Button and Form */}
+                  <div className="mb-4 flex justify-end items-center space-x-2">
                     <button
-                      onClick={() => handleApprove(loan.id)}
-                      disabled={loan.is_approved === 1}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      onClick={() => handleApproveToggle(loan.id)}
+                      disabled={loan.is_approved === 1 || approving[loan.id]}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
                         loan.is_approved === 1
                           ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : approving[loan.id]
+                          ? 'bg-green-700 text-white cursor-not-allowed'
                           : 'bg-green-600 hover:bg-green-700 text-white'
                       }`}
                     >
-                      {loan.is_approved === 1 ? 'Approved' : 'Approve Loan'}
+                      {approving[loan.id] ? (
+                        <>
+                          <span className="spinner mr-2" />
+                          Approving...
+                        </>
+                      ) : loan.is_approved === 1 ? (
+                        'Approved'
+                      ) : (
+                        'Approve Loan'
+                      )}
                     </button>
                   </div>
+
+                  {/* Approve Form (Collapsible) */}
+                  <AnimatePresence>
+                    {sections.has('approve') && !loan.is_approved && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden mb-4"
+                      >
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <h3 className="text-sm font-semibold text-blue-900 mb-3">Approve Loan Details</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-blue-700 mb-1">Loan Amount</label>
+                              <input
+                                type="number"
+                                value={approveForm[loan.id]?.loan_amount || ''}
+                                onChange={(e) => handleApproveFormChange(loan.id, 'loan_amount', e.target.value)}
+                                className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g., 15200"
+                                min="0"
+                                step="0.01"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-blue-700 mb-1">Term Months</label>
+                              <input
+                                type="number"
+                                value={approveForm[loan.id]?.term_months || ''}
+                                onChange={(e) => handleApproveFormChange(loan.id, 'term_months', e.target.value)}
+                                className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g., 3"
+                                min="1"
+                                step="1"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-blue-700 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={approveForm[loan.id]?.description || ''}
+                                onChange={(e) => handleApproveFormChange(loan.id, 'description', e.target.value)}
+                                className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g., first loan approved"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-blue-700 mb-1">Loan Cap</label>
+                              <input
+                                type="number"
+                                value={approveForm[loan.id]?.loan_cap || ''}
+                                onChange={(e) => handleApproveFormChange(loan.id, 'loan_cap', e.target.value)}
+                                className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g., 6000"
+                                min="0"
+                                step="0.01"
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-4 flex justify-end space-x-2">
+                            <button
+                              onClick={() => handleApprove(loan.id)}
+                              disabled={approving[loan.id]}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                approving[loan.id]
+                                  ? 'bg-blue-900 text-white cursor-not-allowed'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                              }`}
+                            >
+                              {approving[loan.id] ? (
+                                <>
+                                  <span className="spinner mr-2" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                'Submit'
+                              )}
+                            </button>
+                            <button
+                              onClick={() => toggleSection(loan.id, 'approve')}
+                              className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-200 hover:bg-blue-300 text-blue-900 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Loan Details Section (Always Visible) */}
                   <div className="mb-6">
@@ -517,7 +733,6 @@ export default function Loans() {
                             <div className="font-semibold text-blue-700">Loan Amount</div>
                             <div>{renderValue(loan.loan_amount)}</div>
                           </div>
-
                           <div>
                             <div className="font-semibold text-blue-700">Loan Cap</div>
                             <div>{renderValue(loan.loan_cap)}</div>
@@ -530,7 +745,6 @@ export default function Loans() {
                             <div className="font-semibold text-blue-700">Is All Amount Spent</div>
                             <div>{renderValue(loan.is_all_amount_spent)}</div>
                           </div>
-
                           <div>
                             <div className="font-semibold text-blue-700">Status</div>
                             <div>{renderValue(loan.status)}</div>
@@ -543,7 +757,6 @@ export default function Loans() {
                             <div className="font-semibold text-blue-700">Repayment Rule</div>
                             <div>{renderValue(loan.repayment_rule)}</div>
                           </div>
-
                           <div>
                             <div className="font-semibold text-blue-700">Description</div>
                             <div>{renderValue(loan.description)}</div>
@@ -556,7 +769,6 @@ export default function Loans() {
                             <div className="font-semibold text-blue-700">User ID</div>
                             <div>{renderValue(loan.user_id)}</div>
                           </div>
-
                           <div>
                             <div className="font-semibold text-blue-700">Created At</div>
                             <div>{renderValue(new Date(loan.created_at).toLocaleString())}</div>
@@ -605,7 +817,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">First Name</div>
                                   <div>{renderValue(loan.user.first_name)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Last Name</div>
                                   <div>{renderValue(loan.user.last_name)}</div>
@@ -618,7 +829,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">Phone Number</div>
                                   <div>{renderValue(loan.user.phone_number)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Is Verified</div>
                                   <div>{loan.user.is_verified ? 'Yes' : 'No'}</div>
@@ -631,7 +841,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">Firebase ID</div>
                                   <div>{renderValue(loan.user.firebase_id)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Wallet Balance</div>
                                   <div>{renderValue(loan.user.wallet_balance)}</div>
@@ -644,7 +853,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">User Status</div>
                                   <div>{renderValue(loan.user.status)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Is Active</div>
                                   <div>{loan.user.is_active ? 'Yes' : 'No'}</div>
@@ -657,7 +865,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">Provider</div>
                                   <div>{renderValue(loan.user.provider)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Corporate ID</div>
                                   <div>{renderValue(loan.user.corporate_id)}</div>
@@ -670,7 +877,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">Image</div>
                                   <div>{renderValue(loan.user.image)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Cover Photo</div>
                                   <div>{renderValue(loan.user.cover_photo)}</div>
@@ -683,7 +889,6 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">Userable ID</div>
                                   <div>{renderValue(loan.user.userable_id)}</div>
                                 </div>
-
                                 <div>
                                   <div className="font-semibold text-blue-700">Last Active At</div>
                                   <div>{renderValue(loan.user.last_active_at)}</div>
@@ -696,7 +901,38 @@ export default function Loans() {
                                   <div className="font-semibold text-blue-700">Updated At</div>
                                   <div>{renderValue(new Date(loan.user.updated_at).toLocaleString())}</div>
                                 </div>
-
+                                {loan.user.loan_user && (
+                                  <>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Loan User ID</div>
+                                      <div>{renderValue(loan.user.loan_user.id)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Loan Balance</div>
+                                      <div>{renderValue(loan.user.loan_user.loan_balance)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Loan Cap</div>
+                                      <div>{renderValue(loan.user.loan_user.loan_cap)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Loan User Approved</div>
+                                      <div>{loan.user.loan_user.is_approved ? 'Yes' : 'No'}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Approved Date</div>
+                                      <div>{renderValue(loan.user.loan_user.approved_date)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Loan User Created At</div>
+                                      <div>{renderValue(new Date(loan.user.loan_user.created_at).toLocaleString())}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-blue-700">Loan User Updated At</div>
+                                      <div>{renderValue(new Date(loan.user.loan_user.updated_at).toLocaleString())}</div>
+                                    </div>
+                                  </>
+                                )}
                                 <div className="col-span-full">
                                   <div className="font-semibold text-blue-700">Deleted At</div>
                                   <div>{renderValue(loan.user.deleted_at)}</div>
