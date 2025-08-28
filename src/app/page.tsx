@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
+import NavigationBar from './components/NavigationBar';
 
 interface User {
   id: number;
@@ -349,12 +349,6 @@ export default function Loans() {
     }
   };
 
-  const handleNavClick = (route: string) => {
-    if (routeMap[pathname] !== route) {
-      setNavLoading((prev) => ({ ...prev, [route]: true }));
-    }
-  };
-
   const handleRefresh = () => {
     setLoans([]);
     setMeta(null);
@@ -365,98 +359,13 @@ export default function Loans() {
 
   return (
     <main className="min-h-screen bg-blue-50 text-gray-900 p-4 sm:p-6">
-      {/* Spinner CSS */}
-      <style jsx>{`
-        .spinner {
-          display: inline-block;
-          width: 1.5rem;
-          height: 1.5rem;
-          border: 3px solid rgba(255, 255, 255, 0.3);
-          border-top: 3px solid #ffffff;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-
       {/* Navigation Bar */}
-      <nav className="bg-gradient-to-r from-blue-800 to-blue-600 text-white p-4 rounded-lg shadow-lg mb-6">
-        <ul className="flex space-x-4 sm:space-x-6 justify-center items-center">
-          <li>
-            <Link
-              href="/"
-              onClick={() => handleNavClick('loans')}
-              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                currentRoute === 'loans'
-                  ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400 cursor-not-allowed'
-                  : navLoading.loans
-                  ? 'bg-blue-900 cursor-not-allowed'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
-              }`}
-              style={currentRoute === 'loans' ? { pointerEvents: 'none' } : {}}
-            >
-              {navLoading.loans && currentRoute !== 'loans' ? (
-                <>
-                  <span className="spinner mr-2" />
-                  Loans
-                </>
-              ) : (
-                'Loans'
-              )}
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/loan_users"
-              onClick={() => handleNavClick('users')}
-              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                currentRoute === 'users'
-                  ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400 cursor-not-allowed'
-                  : navLoading.users
-                  ? 'bg-blue-900 cursor-not-allowed'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
-              }`}
-              style={currentRoute === 'users' ? { pointerEvents: 'none' } : {}}
-            >
-              {navLoading.users && currentRoute !== 'users' ? (
-                <>
-                  <span className="spinner mr-2" />
-                  Loan Users
-                </>
-              ) : (
-                'Loan Users'
-              )}
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/products"
-              onClick={() => handleNavClick('products')}
-              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                currentRoute === 'products'
-                  ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400 cursor-not-allowed'
-                  : navLoading.products
-                  ? 'bg-blue-900 cursor-not-allowed'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
-              }`}
-              style={currentRoute === 'products' ? { pointerEvents: 'none' } : {}}
-            >
-              {navLoading.products && currentRoute !== 'products' ? (
-                <>
-                  <span className="spinner mr-2" />
-                  Products
-                </>
-              ) : (
-                'Products'
-              )}
-            </Link>
-          </li>
-        </ul>
-      </nav>
+      <NavigationBar
+        navLoading={navLoading}
+        setNavLoading={setNavLoading}
+        currentRoute={currentRoute}
+        routeMap={routeMap}
+      />
 
       <header className="mb-6 py-4 border-b border-blue-200">
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-900">Loans Dashboard</h1>
