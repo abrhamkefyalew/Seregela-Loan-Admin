@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import NavigationBar from '../components/NavigationBar';
 
 interface Category {
   id: number;
@@ -300,6 +300,12 @@ export default function Products() {
     }
   };
 
+  const handleNavClick = (route: string) => {
+    if (routeMap[pathname] !== route) {
+      setNavLoading((prev) => ({ ...prev, [route]: true }));
+    }
+  };
+
   const handleRefresh = () => {
     setError(null);
     setProductsByCategory({});
@@ -469,12 +475,79 @@ export default function Products() {
       `}</style>
 
       {/* Navigation Bar */}
-      <NavigationBar
-        navLoading={navLoading}
-        setNavLoading={setNavLoading}
-        currentRoute={currentRoute}
-        routeMap={routeMap}
-      />
+      <nav className="bg-gradient-to-r from-blue-800 to-blue-600 text-white p-4 rounded-lg shadow-lg mb-6 mx-4 sm:mx-6">
+        <ul className="flex space-x-4 sm:space-x-6 justify-center items-center">
+          <li>
+            <Link
+              href="/"
+              onClick={() => handleNavClick('loans')}
+              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
+                navLoading.loans
+                  ? 'bg-blue-900 cursor-not-allowed'
+                  : currentRoute === 'loans'
+                  ? 'bg-blue-900 text-white cursor-not-allowed underline'
+                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
+              }`}
+              style={currentRoute === 'loans' ? { pointerEvents: 'none' } : {}}
+            >
+              {navLoading.loans && currentRoute !== 'loans' ? (
+                <>
+                  <span className="spinner mr-2" />
+                  Loans
+                </>
+              ) : (
+                'Loans'
+              )}
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/loan_users"
+              onClick={() => handleNavClick('loan_users')}
+              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
+                navLoading.loan_users
+                  ? 'bg-blue-900 cursor-not-allowed'
+                  : currentRoute === 'loan_users'
+                  ? 'bg-blue-900 text-white cursor-not-allowed underline'
+                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
+              }`}
+              style={currentRoute === 'loan_users' ? { pointerEvents: 'none' } : {}}
+            >
+              {navLoading.loan_users && currentRoute !== 'loan_users' ? (
+                <>
+                  <span className="spinner mr-2" />
+                  Loan Users
+                </>
+              ) : (
+                'Loan Users'
+              )}
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/products"
+              onClick={() => handleNavClick('products')}
+              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
+                navLoading.products
+                  ? 'bg-blue-900 cursor-not-allowed'
+                  : currentRoute === 'products'
+                  ? 'bg-blue-900 text-white cursor-not-allowed underline'
+                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
+              }`}
+              style={currentRoute === 'products' ? { pointerEvents: 'none' } : {}}
+            >
+              {navLoading.products && currentRoute !== 'products' ? (
+                <>
+                  <span className="spinner mr-2" />
+                  Products
+                </>
+              ) : (
+                'Products'
+              )}
+            </Link>
+          </li>
+        </ul>
+      </nav>
 
       <header className="mb-6 py-4 border-b border-blue-200 mx-4 sm:mx-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-900">Products Dashboard</h1>
@@ -622,188 +695,180 @@ export default function Products() {
       </div>
 
       {loading ? (
-        <div className="text-center text-blue-600 py-8 mx-4 sm:mx-6">
-          <span className="spinner spinner-dark mr-2" />
-          Loading categories...
-        </div>
+        <div className="text-center text-blue-600 py-8 mx-4 sm:mx-6">Loading categories...</div>
       ) : error ? (
         <div className="text-center text-red-600 py-8 mx-4 sm:mx-6">{error}</div>
       ) : (
-        <div className="mx-4 sm:mx-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-blue-900 mb-4">Categories</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={handleAllProductsClick}
+        <div className="w-full px-4 sm:px-6">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
+            <AnimatePresence>
+              <motion.button
+                key="all-products"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className={`bg-blue-600 text-white px-3 py-2 rounded-lg shadow border border-blue-300 transition-all duration-300 flex flex-col items-center justify-center ${
+                  selectedCategoryId === 0 ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400' : ''
+                } ${productLoading[0] ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:bg-blue-700'}`}
                 disabled={productLoading[0]}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategoryId === 0
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                } ${productLoading[0] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={handleAllProductsClick}
               >
                 {productLoading[0] ? (
-                  <>
-                    <span className="spinner spinner-dark mr-2" />
-                    All Products
-                  </>
-                ) : (
-                  'All Products'
-                )}
-              </button>
-              {categories
-                .filter((category) => category.is_active)
-                .map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => handleCategoryClick(category.id)}
-                    disabled={productLoading[category.id]}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedCategoryId === category.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-blue-100 text-blue-900 hover:bg-blue-ov-200'
-                    } ${productLoading[category.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {productLoading[category.id] ? (
-                      <>
-                        <span className="spinner spinner-dark mr-2" />
-                        {category.name} ({category.products_count})
-                      </>
-                    ) : (
-                      `${category.name} (${category.products_count})`
-                    )}
-                  </button>
-                ))}
-            </div>
+                  <span className="spinner mb-2" />
+                ) : null}
+                <h2 className="text-lg font-semibold truncate">All Products</h2>
+                <p className="text-xs">View All</p>
+              </motion.button>
+              {categories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className={`bg-white px-3 py-2 rounded-lg shadow border border-blue-100 transition-all duration-300 flex flex-col items-center justify-center ${
+                    selectedCategoryId === category.id ? 'bg-blue-200 ring-2 ring-blue-400' : ''
+                  } ${productLoading[category.id] ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:bg-blue-50'}`}
+                  disabled={productLoading[category.id]}
+                  onClick={() => handleCategoryClick(category.id)}
+                >
+                  {productLoading[category.id] ? (
+                    <span className="spinner-dark mb-2" />
+                  ) : null}
+                  <h2 className="text-base font-semibold text-blue-900 truncate">{category.name}</h2>
+                  <p className="text-xs text-blue-600">Products: {category.products_count}</p>
+                </motion.button>
+              ))}
+            </AnimatePresence>
           </div>
 
           {selectedCategoryId !== null && (
-            <div>
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-4 text-blue-900">
+                {selectedCategoryId === 0
+                  ? 'All Products'
+                  : `Products in ${categories.find((c) => c.id === selectedCategoryId)?.name}`}
+              </h2>
               {productLoading[selectedCategoryId] ? (
-                <div className="text-center text-blue-600 py-8">
-                  <span className="spinner spinner-dark mr-2" />
-                  Loading products...
-                </div>
+                <div className="text-center text-blue-600 py-4">Loading products...</div>
               ) : productError[selectedCategoryId] ? (
-                <div className="text-center text-red-600 py-8">{productError[selectedCategoryId]}</div>
-              ) : productsByCategory[selectedCategoryId]?.length === 0 ? (
-                <div className="text-center text-blue-600 py-8">
-                  No products found for{' '}
-                  {selectedCategoryId === 0
-                    ? 'All Products'
-                    : categories.find((c) => c.id === selectedCategoryId)?.name || 'this category'}.
-                </div>
+                <div className="text-center text-red-600 py-4">{productError[selectedCategoryId]}</div>
+              ) : !productsByCategory[selectedCategoryId] || productsByCategory[selectedCategoryId].length === 0 ? (
+                <div className="text-center text-blue-600 py-4">No active products found.</div>
               ) : (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold text-blue-900 mb-4">
-                    Products{' '}
-                    {selectedCategoryId === 0
-                      ? 'All Products'
-                      : `in ${categories.find((c) => c.id === selectedCategoryId)?.name}`}
-                  </h2>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm bg-white rounded-lg shadow border border-blue-100">
-                      <thead>
-                        <tr className="bg-blue-100">
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">ID</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Name</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Price</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Total Quantity</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Images</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Loan Eligible</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {productsByCategory[selectedCategoryId]?.map((product) => (
-                          <tr key={product.id}>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.id}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.name}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.price}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.total_quantity}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">
-                              {product.image_paths.length > 0 ? (
-                                <div className="flex space-x-2">
-                                  {product.image_paths.map((path, index) => (
-                                    <img
-                                      key={index}
-                                      src={path}
-                                      alt={`Product ${product.name} image ${index + 1}`}
-                                      className="w-12 h-12 object-cover rounded"
-                                    />
-                                  ))}
-                                </div>
-                              ) : (
-                                'No Images'
-                              )}
-                            </td>
-                            <td className="px-4 py-2 border-b border-blue-200">
+                <>
+                  <div className="flex flex-col gap-4">
+                    <AnimatePresence>
+                      {productsByCategory[selectedCategoryId].map((product) => (
+                        <motion.div
+                          key={product.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.3 }}
+                          className="bg-white p-4 rounded-lg shadow border border-blue-100 flex items-center gap-4 hover:shadow-lg hover:scale-[1.01] transition-all duration-300 sm:flex-row flex-col"
+                        >
+                          {product.image_paths[0] ? (
+                            <img
+                              src={product.image_paths[0]}
+                              alt={product.name}
+                              className="w-32 h-32 object-cover rounded-md"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.png'; // Fallback image
+                              }}
+                            />
+                          ) : (
+                            <div className="w-32 h-32 bg-gray-200 rounded-md flex items-center justify-center">
+                              <span className="text-gray-500">No image</span>
+                            </div>
+                          )}
+                          <div className="flex-1 flex flex-col justify-between">
+                            <div>
+                              <h3 className="text-base font-semibold text-blue-900">{product.name}</h3>
+                              <p className="text-sm text-blue-600">Price: {product.price} ETB</p>
+                              <p className="text-sm text-blue-600">In Stock: {product.total_quantity}</p>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-sm text-blue-600">
+                                Loan Eligible: {product.is_loan_eligible ? 'Yes' : 'No'}
+                              </p>
                               <label className="toggle-switch">
                                 <input
                                   type="checkbox"
                                   checked={product.is_loan_eligible}
-                                  onChange={() => handleToggleEligibility(product.id, selectedCategoryId)}
                                   disabled={toggling[product.id]}
+                                  onChange={() => handleToggleEligibility(product.id, selectedCategoryId)}
                                 />
                                 <span className="slider"></span>
                               </label>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                   {productMeta[selectedCategoryId] && (
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="text-sm text-blue-600">
-                        Showing {productMeta[selectedCategoryId].from} to {productMeta[selectedCategoryId].to} of{' '}
-                        {productMeta[selectedCategoryId].total} products
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, 1)}
-                          disabled={productMeta[selectedCategoryId].current_page === 1}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          First
-                        </button>
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page - 1)}
-                          disabled={productMeta[selectedCategoryId].current_page === 1}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          Prev
-                        </button>
-                        {[...Array(productMeta[selectedCategoryId].last_page).keys()]
-                          .filter((num) => Math.abs(num + 1 - productMeta[selectedCategoryId].current_page) <= 2 || num === 0 || num === productMeta[selectedCategoryId].last_page - 1)
-                          .map((num) => (
-                            <button
-                              key={num + 1}
-                              onClick={() => handlePageChange(selectedCategoryId, num + 1)}
-                              className={`px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors ${
-                                num + 1 === productMeta[selectedCategoryId].current_page ? 'bg-blue-600 text-white' : 'bg-blue-100'
-                              }`}
-                            >
-                              {num + 1}
-                            </button>
-                          ))}
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page + 1)}
-                          disabled={productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          Next
-                        </button>
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].last_page)}
-                          disabled={productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          Last
-                        </button>
-                      </div>
+                    <div className="mt-4 flex justify-center items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handlePageChange(selectedCategoryId, 1)}
+                        disabled={productMeta[selectedCategoryId].current_page === 1}
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        First
+                      </button>
+                      <button
+                        onClick={() =>
+                          handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page - 1)
+                        }
+                        disabled={productMeta[selectedCategoryId].current_page === 1}
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        Prev
+                      </button>
+                      {[...Array(productMeta[selectedCategoryId].last_page).keys()]
+                        .filter(
+                          (num) =>
+                            Math.abs(num + 1 - productMeta[selectedCategoryId].current_page) <= 2 ||
+                            num === 0 ||
+                            num === productMeta[selectedCategoryId].last_page - 1
+                        )
+                        .map((num) => (
+                          <button
+                            key={num + 1}
+                            onClick={() => handlePageChange(selectedCategoryId, num + 1)}
+                            className={`px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors ${
+                              num + 1 === productMeta[selectedCategoryId].current_page
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-blue-100'
+                            }`}
+                          >
+                            {num + 1}
+                          </button>
+                        ))}
+                      <button
+                        onClick={() =>
+                          handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page + 1)
+                        }
+                        disabled={
+                          productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page
+                        }
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        Next
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].last_page)}
+                        disabled={
+                          productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page
+                        }
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        Last
+                      </button>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           )}
