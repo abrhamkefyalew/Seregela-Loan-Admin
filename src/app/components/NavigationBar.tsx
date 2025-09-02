@@ -1,26 +1,26 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { Dispatch, SetStateAction } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface NavigationBarProps {
   navLoading: { [key: string]: boolean };
-  setNavLoading: Dispatch<SetStateAction<{ [key: string]: boolean }>>;
+  setNavLoading: React.Dispatch<React.SetStateAction<{ [key: string]: boolean }>>;
   currentRoute: string;
   routeMap: { [key: string]: string };
 }
 
 export default function NavigationBar({ navLoading, setNavLoading, currentRoute, routeMap }: NavigationBarProps) {
-  const handleNavClick = (route: string) => {
-    if (routeMap[usePathname()] !== route) {
-      setNavLoading((prev) => ({ ...prev, [route]: true }));
-    }
+  const router = useRouter();
+
+  const handleNavClick = (route: string, key: string) => {
+    if (currentRoute === key || navLoading[key]) return;
+    setNavLoading((prev) => ({ ...prev, [key]: true }));
+    router.push(route);
   };
 
+  // Ensure spinner CSS is included
   return (
     <>
-      {/* Spinner CSS */}
       <style jsx>{`
         .spinner {
           display: inline-block;
@@ -37,80 +37,35 @@ export default function NavigationBar({ navLoading, setNavLoading, currentRoute,
           }
         }
       `}</style>
-
-      {/* Navigation Bar */}
-      <nav className="bg-gradient-to-r from-blue-800 to-blue-600 text-white p-4 rounded-lg shadow-lg mb-6 mx-4 sm:mx-6">
-        <ul className="flex space-x-4 sm:space-x-6 justify-center items-center">
-          <li>
-            <Link
-              href="/"
-              onClick={() => handleNavClick('loans')}
-              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                navLoading.loans
-                  ? 'bg-blue-900 cursor-not-allowed'
-                  : currentRoute === 'loans'
-                  ? 'bg-blue-900 text-white cursor-not-allowed underline'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
-              }`}
-              style={currentRoute === 'loans' ? { pointerEvents: 'none' } : {}}
-            >
-              {navLoading.loans && currentRoute !== 'loans' ? (
-                <>
-                  <span className="spinner mr-2" />
-                  Loans
-                </>
-              ) : (
-                'Loans'
-              )}
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/loan_users"
-              onClick={() => handleNavClick('loan_users')}
-              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                navLoading.loan_users
-                  ? 'bg-blue-900 cursor-not-allowed'
-                  : currentRoute === 'loan_users'
-                  ? 'bg-blue-900 text-white cursor-not-allowed underline'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
-              }`}
-              style={currentRoute === 'loan_users' ? { pointerEvents: 'none' } : {}}
-            >
-              {navLoading.loan_users && currentRoute !== 'loan_users' ? (
-                <>
-                  <span className="spinner mr-2" />
-                  Loan Users
-                </>
-              ) : (
-                'Loan Users'
-              )}
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/products"
-              onClick={() => handleNavClick('products')}
-              className={`relative flex items-center px-4 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-300 ${
-                navLoading.products
-                  ? 'bg-blue-900 cursor-not-allowed'
-                  : currentRoute === 'products'
-                  ? 'bg-blue-900 text-white cursor-not-allowed underline'
-                  : 'bg-blue-700 hover:bg-blue-500 hover:shadow-md active:bg-blue-900'
-              }`}
-              style={currentRoute === 'products' ? { pointerEvents: 'none' } : {}}
-            >
-              {navLoading.products && currentRoute !== 'products' ? (
-                <>
-                  <span className="spinner mr-2" />
-                  Products
-                </>
-              ) : (
-                'Products'
-              )}
-            </Link>
-          </li>
-        </ul>
+      <nav className="bg-blue-900 text-white p-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-bold">Seregela Gebeya</h1>
+          <div className="flex space-x-4">
+            {[
+              { key: 'loans', label: 'Loans', route: '/' },
+              { key: 'loan_users', label: 'Loan Users', route: '/loan_users' },
+              { key: 'products', label: 'Products', route: '/products' },
+            ].map(({ key, label, route }) => (
+              <button
+                key={key}
+                onClick={() => handleNavClick(route, key)}
+                disabled={navLoading[key]}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  currentRoute === key ? 'bg-blue-600' : 'bg-blue-800 hover:bg-blue-700'
+                } ${navLoading[key] ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {navLoading[key] ? (
+                  <>
+                    <span className="spinner mr-2" />
+                    {label}
+                  </>
+                ) : (
+                  label
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </nav>
     </>
   );
