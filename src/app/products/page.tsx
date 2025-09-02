@@ -23,6 +23,7 @@ interface Product {
   total_quantity: number;
   image_paths: string[];
   is_loan_eligible: boolean;
+  loan_price: string | null;
 }
 
 interface ProductMeta {
@@ -60,6 +61,7 @@ export default function Products() {
     price_lte: string;
     only_trashed: boolean;
     with_trashed: boolean;
+    is_loan_eligible_search: boolean;
   }>({
     name: '',
     brand: '',
@@ -69,7 +71,10 @@ export default function Products() {
     price_lte: '',
     only_trashed: false,
     with_trashed: false,
+    is_loan_eligible_search: false,
   });
+  const [loanPriceUpdating, setLoanPriceUpdating] = useState<{ [key: number]: boolean }>({});
+  const [loanPriceInputs, setLoanPriceInputs] = useState<{ [key: number]: string }>({});
 
   // Map routes to nav items
   const routeMap: { [key: string]: string } = {
@@ -92,6 +97,7 @@ export default function Products() {
     if (filters.price_lte) params.append('price[lte]', filters.price_lte);
     if (filters.only_trashed) params.append('only_trashed', '');
     if (filters.with_trashed) params.append('with_trashed', '');
+    if (filters.is_loan_eligible_search) params.append('is_loan_eligible_search', '1');
     return params.toString();
   };
 
@@ -184,6 +190,7 @@ export default function Products() {
             total_quantity: product.total_quantity,
             image_paths: product.image_paths,
             is_loan_eligible: !!product.is_loan_eligible,
+            loan_price: product.loan_price || null,
           })),
       }));
       setProductMeta((prev) => ({
@@ -249,6 +256,7 @@ export default function Products() {
             total_quantity: product.total_quantity,
             image_paths: product.image_paths,
             is_loan_eligible: !!product.is_loan_eligible,
+            loan_price: product.loan_price || null,
           })),
       }));
       setProductMeta((prev) => ({
@@ -266,6 +274,58 @@ export default function Products() {
       setProductError((prev) => ({ ...prev, 0: 'Error loading products' }));
     } finally {
       setProductLoading((prev) => ({ ...prev, 0: false }));
+    }
+  };
+
+  const handleUpdateLoanPrice = async (productId: number, categoryId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token found, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    const loanPrice = loanPriceInputs[productId];
+    if (!loanPrice || isNaN(Number(loanPrice)) || Number(loanPrice) < 0) {
+      console.warn('Invalid loan price for product', productId);
+      return;
+    }
+
+    setLoanPriceUpdating((prev) => ({ ...prev, [productId]: true }));
+
+    try {
+      const formData = new FormData();
+      formData.append('_method', 'PUT');
+      formData.append('loan_price', loanPrice);
+
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/products/${productId}/update-loan-price`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.text();
+        console.warn('Loan price update failed for product', productId, res.status, errorBody);
+        throw new Error('Failed to update loan price');
+      }
+
+      // Optimistically update the loan price
+      setProductsByCategory((prev) => {
+        const products = [...(prev[categoryId] || [])];
+        const index = products.findIndex((p) => p.id === productId);
+        if (index !== -1) {
+          products[index] = { ...products[index], loan_price: loanPrice };
+        }
+        return { ...prev, [categoryId]: products };
+      });
+    } catch (e) {
+      console.warn('Error updating loan price for product', productId, e);
+    } finally {
+      setLoanPriceUpdating((prev) => ({ ...prev, [productId]: false }));
     }
   };
 
@@ -321,6 +381,7 @@ export default function Products() {
       price_lte: '',
       only_trashed: false,
       with_trashed: false,
+      is_loan_eligible_search: false,
     });
     fetchCategories();
     fetchAllProducts(1);
@@ -394,6 +455,10 @@ export default function Products() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const handleLoanPriceChange = (productId: number, value: string) => {
+    setLoanPriceInputs((prev) => ({ ...prev, [productId]: value }));
   };
 
   const handleApplyFilters = () => {
@@ -580,6 +645,16 @@ export default function Products() {
                 />
                 With Trashed
               </label>
+              <label className="flex items-center text-sm font-medium text-blue-700">
+                <input
+                  type="checkbox"
+                  name="is_loan_eligible_search"
+                  checked={filters.is_loan_eligible_search}
+                  onChange={handleFilterChange}
+                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-blue-300 rounded"
+                />
+                Loan Eligible
+              </label>
             </div>
           </div>
           <div className="mt-4 flex justify-end">
@@ -721,6 +796,9 @@ export default function Products() {
                               <h3 className="text-base font-semibold text-blue-900">{product.name}</h3>
                               <p className="text-sm text-blue-600">Price: {product.price} ETB</p>
                               <p className="text-sm text-blue-600">In Stock: {product.total_quantity}</p>
+                              <p className="text-sm text-blue-600">
+                                Loan Price: {product.loan_price ? `${product.loan_price} ETB` : 'Not set'}
+                              </p>
                             </div>
                             <div className="flex items-center justify-between mt-2">
                               <p className="text-sm text-blue-600">
@@ -735,6 +813,37 @@ export default function Products() {
                                 />
                                 <span className="slider"></span>
                               </label>
+                            </div>
+                            <div className="mt-2">
+                              <label className="block text-sm font-medium text-blue-700">Update Loan Price</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={loanPriceInputs[product.id] || ''}
+                                  onChange={(e) => handleLoanPriceChange(product.id, e.target.value)}
+                                  min="0"
+                                  className="w-24 p-2 border border-blue-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="e.g., 3876"
+                                />
+                                <button
+                                  onClick={() => handleUpdateLoanPrice(product.id, selectedCategoryId)}
+                                  disabled={loanPriceUpdating[product.id] || !loanPriceInputs[product.id]}
+                                  className={`flex items-center px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                    loanPriceUpdating[product.id] || !loanPriceInputs[product.id]
+                                      ? 'bg-blue-900 text-white cursor-not-allowed'
+                                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                                  }`}
+                                >
+                                  {loanPriceUpdating[product.id] ? (
+                                    <>
+                                      <span className="spinner mr-2" />
+                                      Updating...
+                                    </>
+                                  ) : (
+                                    'Update'
+                                  )}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </motion.div>
