@@ -537,6 +537,21 @@ export default function Products() {
           background-color: #9ca3af;
           cursor: not-allowed;
         }
+        .category-button {
+          min-height: 80px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 8px;
+        }
+        .category-button h2 {
+          word-break: break-word;
+          white-space: normal;
+          line-height: 1.2;
+          max-width: 100%;
+        }
       `}</style>
 
       {/* Navigation Bar */}
@@ -716,7 +731,7 @@ export default function Products() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
-                className={`bg-blue-600 text-white px-3 py-2 rounded-lg shadow border border-blue-300 transition-all duration-300 flex flex-col items-center justify-center ${
+                className={`bg-blue-600 text-white px-3 py-2 rounded-lg shadow border border-blue-300 transition-all duration-300 category-button ${
                   selectedCategoryId === 0 ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400' : ''
                 } ${productLoading[0] ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:bg-blue-700'}`}
                 disabled={productLoading[0]}
@@ -725,7 +740,7 @@ export default function Products() {
                 {productLoading[0] ? (
                   <span className="spinner mb-2" />
                 ) : null}
-                <h2 className="text-lg font-semibold truncate">All Products</h2>
+                <h2 className="text-lg font-semibold">All Products</h2>
                 <p className="text-xs">View All</p>
               </motion.button>
               {categories.map((category) => (
@@ -735,7 +750,7 @@ export default function Products() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className={`bg-white px-3 py-2 rounded-lg shadow border border-blue-100 transition-all duration-300 flex flex-col items-center justify-center ${
+                  className={`bg-white px-3 py-2 rounded-lg shadow border border-blue-100 transition-all duration-300 category-button ${
                     selectedCategoryId === category.id ? 'bg-blue-200 ring-2 ring-blue-400' : ''
                   } ${productLoading[category.id] ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:bg-blue-50'}`}
                   disabled={productLoading[category.id]}
@@ -744,7 +759,7 @@ export default function Products() {
                   {productLoading[category.id] ? (
                     <span className="spinner-dark mb-2" />
                   ) : null}
-                  <h2 className="text-base font-semibold text-blue-900 truncate">{category.name}</h2>
+                  <h2 className="text-base font-semibold text-blue-900">{category.name}</h2>
                   <p className="text-xs text-blue-600">Products: {category.products_count}</p>
                 </motion.button>
               ))}
