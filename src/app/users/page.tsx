@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavigationBar from '../components/NavigationBar';
@@ -150,6 +150,8 @@ export default function Users() {
   }>({
     phone_number: '',
   });
+  const [loanApplying, setLoanApplying] = useState<{ [key: number]: boolean }>({});
+  const [loanApplyError, setLoanApplyError] = useState<{ [key: number]: string | null }>({});
 
   // Map routes to nav items
   const routeMap: { [key: string]: string } = {
@@ -212,6 +214,55 @@ export default function Users() {
     }
   };
 
+  const handleApplyLoan = async (userId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token found, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    setLoanApplying((prev) => ({ ...prev, [userId]: true }));
+    setLoanApplyError((prev) => ({ ...prev, [userId]: null }));
+
+    try {
+      const formData = new FormData();
+      formData.append('user_id', userId.toString());
+
+      const res = await fetch('https://api.seregelagebeya.com/api/v1/loans', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorMessage = errorData.message || 'Failed to apply for loan';
+        console.warn('Loan application failed for user', userId, res.status, errorData);
+        setLoanApplyError((prev) => ({ ...prev, [userId]: errorMessage }));
+        return;
+      }
+
+      const json = await res.json();
+      const newLoan = json.data;
+
+      // Optimistically update the user's loans
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId ? { ...user, loans: [...user.loans, newLoan] } : user
+        )
+      );
+    } catch (e) {
+      console.warn('Error applying for loan for user', userId, e);
+      setLoanApplyError((prev) => ({ ...prev, [userId]: 'Error applying for loan' }));
+    } finally {
+      setLoanApplying((prev) => ({ ...prev, [userId]: false }));
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, [router, currentPage, filters.phone_number]);
@@ -228,6 +279,7 @@ export default function Users() {
     setUserMeta(null);
     setCurrentPage(1);
     setFilters({ phone_number: '' });
+    setLoanApplyError({});
     fetchUsers();
   };
 
@@ -264,6 +316,36 @@ export default function Users() {
           to {
             transform: rotate(360deg);
           }
+        }
+        .table-container {
+          overflow-x: auto;
+          width: 100%;
+        }
+        .table-container table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .table-container th,
+        .table-container td {
+          padding: 8px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb;
+          white-space: nowrap;
+        }
+        .table-container th {
+          background-color: #f3f4f6;
+          font-weight: 600;
+          color: #1e40af;
+        }
+        .table-container td {
+          color: #1e40af;
+        }
+        .loan-transaction th,
+        .loan-transaction td {
+          color: #15803d;
+        }
+        .loan-transaction th {
+          background-color: #dcfce7;
         }
       `}</style>
 
@@ -334,22 +416,123 @@ export default function Users() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-white p-4 rounded-lg shadow border border-blue-100 hover:shadow-lg hover:scale-[1.01] transition-all duration-300"
+                  className="bg-white p-6 rounded-lg shadow-lg border border-blue-100 hover:shadow-xl hover:scale-[1.01] transition-all duration-300"
                 >
                   <div
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center cursor-pointer mb-4"
                     onClick={() => toggleUserExpand(user.id)}
                   >
                     <div>
-                      <h3 className="text-base font-semibold text-blue-900">{user.name}</h3>
-                      <p className="text-sm text-blue-600">Phone: {user.phone_number}</p>
-                      <p className="text-sm text-blue-600">Email: {user.email}</p>
-                      <p className="text-sm text-blue-600">Wallet Balance: {user.wallet_balance} ETB</p>
+                      <h3 className="text-lg font-semibold text-blue-900">{user.name}</h3>
+                      <p className="text-sm text-blue-600">ID: {user.id}</p>
                     </div>
-                    <span className="text-blue-600">
-                      {expandedUserId === user.id ? 'Collapse' : 'Expand'}
-                    </span>
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApplyLoan(user.id);
+                        }}
+                        disabled={loanApplying[user.id]}
+                        className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          loanApplying[user.id]
+                            ? 'bg-blue-900 text-white cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {loanApplying[user.id] ? (
+                          <>
+                            <span className="spinner mr-2" />
+                            Applying...
+                          </>
+                        ) : (
+                          'Apply for Loan'
+                        )}
+                      </button>
+                      <span className="text-blue-600 font-medium">
+                        {expandedUserId === user.id ? 'Collapse' : 'Expand'}
+                      </span>
+                    </div>
                   </div>
+                  {loanApplyError[user.id] && (
+                    <p className="text-sm text-red-600 mb-4">{loanApplyError[user.id]}</p>
+                  )}
+                  {/* User Details Table */}
+                  <div className="table-container mb-4">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Name</th>
+                          <th>User Name</th>
+                          <th>First Name</th>
+                          <th>Last Name</th>
+                          <th>Email</th>
+                          <th>Phone Number</th>
+                          <th>Email Verified At</th>
+                          <th>Is Active</th>
+                          <th>Is Pin Updated</th>
+                          <th>Is Corporate Manager</th>
+                          <th>Is System User</th>
+                          <th>Corporate ID</th>
+                          <th>Bypass Quantity Restriction</th>
+                          <th>Special Discount</th>
+                          <th>Wallet Balance</th>
+                          <th>Created At</th>
+                          <th>Updated At</th>
+                          <th>Deleted At</th>
+                          <th>Address</th>
+                          <th>Profile Image</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>{user.id}</td>
+                          <td>{user.name}</td>
+                          <td>{user.user_name || 'N/A'}</td>
+                          <td>{user.first_name}</td>
+                          <td>{user.last_name}</td>
+                          <td>{user.email}</td>
+                          <td>{user.phone_number}</td>
+                          <td>{user.email_verified_at || 'N/A'}</td>
+                          <td>{user.is_active ? 'Yes' : 'No'}</td>
+                          <td>{user.is_pin_updated ? 'Yes' : 'No'}</td>
+                          <td>{user.is_corporate_manager ? 'Yes' : 'No'}</td>
+                          <td>{user.is_system_user ? 'Yes' : 'No'}</td>
+                          <td>{user.corporate_id || 'N/A'}</td>
+                          <td>{user.bypass_product_quantity_restriction ? 'Yes' : 'No'}</td>
+                          <td>{user.special_discount ? 'Yes' : 'No'}</td>
+                          <td>{user.wallet_balance} ETB</td>
+                          <td>{new Date(user.created_at).toLocaleString()}</td>
+                          <td>{new Date(user.updated_at).toLocaleString()}</td>
+                          <td>{user.deleted_at || 'N/A'}</td>
+                          <td>
+                            {user.address
+                              ? `${user.address.neighborhood}, ${user.address.house_number}${
+                                  user.address.city ? `, ${user.address.city}` : ''
+                                }${user.address.sub_city ? `, ${user.address.sub_city}` : ''}${
+                                  user.address.woreda ? `, ${user.address.woreda}` : ''
+                                }`
+                              : 'N/A'}
+                          </td>
+                          <td>
+                            {user.profile_image_path ? (
+                              <img
+                                src={user.profile_image_path}
+                                alt="Profile"
+                                className="w-12 h-12 object-cover rounded-md"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/placeholder.png';
+                                }}
+                              />
+                            ) : (
+                              'N/A'
+                            )}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
                   <AnimatePresence>
                     {expandedUserId === user.id && (
                       <motion.div
@@ -360,48 +543,108 @@ export default function Users() {
                         className="mt-4 border-t border-blue-200 pt-4"
                       >
                         {/* Fayda Customers */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-blue-900">Fayda Customers</h4>
+                        <div className="mb-6 bg-blue-50 p-4 rounded-md">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-2">Fayda Customers</h4>
                           {user.fayda_customers.length === 0 ? (
                             <p className="text-sm text-blue-600">No fayda customers found.</p>
                           ) : (
-                            user.fayda_customers.map((fayda) => (
-                              <div key={fayda.id} className="ml-4 mt-2">
-                                <p className="text-sm text-blue-600">Name: {fayda.name}</p>
-                                <p className="text-sm text-blue-600">Phone: {fayda.phone_number}</p>
-                                <p className="text-sm text-blue-600">Birthdate: {fayda.birthdate}</p>
-                                <p className="text-sm text-blue-600">Gender: {fayda.gender}</p>
-                                <p className="text-sm text-blue-600">
-                                  Address: {fayda.address.region}, {fayda.address.zone}, {fayda.address.woreda}
-                                </p>
-                                {fayda.picture_path && (
-                                  <img
-                                    src={fayda.picture_path}
-                                    alt={fayda.name}
-                                    className="w-16 h-16 object-cover rounded-md mt-2"
-                                    onError={(e) => {
-                                      e.currentTarget.src = '/placeholder.png';
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            ))
+                            <div className="table-container">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Sub</th>
+                                    <th>Phone Number</th>
+                                    <th>Birthdate</th>
+                                    <th>Residence Status</th>
+                                    <th>Gender</th>
+                                    <th>Address</th>
+                                    <th>Nationality</th>
+                                    <th>Is Verified</th>
+                                    <th>Created At</th>
+                                    <th>Updated At</th>
+                                    <th>Deleted At</th>
+                                    <th>Picture</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {user.fayda_customers.map((fayda) => (
+                                    <tr key={fayda.id}>
+                                      <td>{fayda.id}</td>
+                                      <td>{fayda.name}</td>
+                                      <td>{fayda.email || 'N/A'}</td>
+                                      <td>{fayda.sub}</td>
+                                      <td>{fayda.phone_number}</td>
+                                      <td>{fayda.birthdate}</td>
+                                      <td>{fayda.residence_status || 'N/A'}</td>
+                                      <td>{fayda.gender}</td>
+                                      <td>
+                                        {fayda.address
+                                          ? `${fayda.address.region}, ${fayda.address.zone}, ${fayda.address.woreda}`
+                                          : 'N/A'}
+                                      </td>
+                                      <td>{fayda.nationality || 'N/A'}</td>
+                                      <td>{fayda.is_verified ? 'Yes' : 'No'}</td>
+                                      <td>{new Date(fayda.created_at).toLocaleString()}</td>
+                                      <td>{new Date(fayda.updated_at).toLocaleString()}</td>
+                                      <td>{fayda.deleted_at || 'N/A'}</td>
+                                      <td>
+                                        {fayda.picture_path ? (
+                                          <img
+                                            src={fayda.picture_path}
+                                            alt={fayda.name}
+                                            className="w-16 h-16 object-cover rounded-md"
+                                            onError={(e) => {
+                                              e.currentTarget.src = '/placeholder.png';
+                                            }}
+                                          />
+                                        ) : (
+                                          'N/A'
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           )}
                         </div>
 
                         {/* Loan User */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-blue-900">Loan User</h4>
+                        <div className="mb-6 bg-blue-100 p-4 rounded-md border border-blue-200">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-2">Loan User</h4>
                           {user.loan_user ? (
-                            <div className="ml-4 mt-2">
-                              <p className="text-sm text-blue-600">Loan Balance: {user.loan_user.loan_balance} ETB</p>
-                              <p className="text-sm text-blue-600">Loan Cap: {user.loan_user.loan_cap} ETB</p>
-                              <p className="text-sm text-blue-600">
-                                Approved: {user.loan_user.is_approved ? 'Yes' : 'No'}
-                              </p>
-                              <p className="text-sm text-blue-600">
-                                Created At: {new Date(user.loan_user.created_at).toLocaleString()}
-                              </p>
+                            <div className="table-container">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>ID</th>
+                                    <th>User ID</th>
+                                    <th>Loan Balance</th>
+                                    <th>Loan Cap</th>
+                                    <th>Is Approved</th>
+                                    <th>Approved Date</th>
+                                    <th>Created At</th>
+                                    <th>Updated At</th>
+                                    <th>Deleted At</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td>{user.loan_user.id}</td>
+                                    <td>{user.loan_user.user_id}</td>
+                                    <td>{user.loan_user.loan_balance} ETB</td>
+                                    <td>{user.loan_user.loan_cap} ETB</td>
+                                    <td>{user.loan_user.is_approved ? 'Yes' : 'No'}</td>
+                                    <td>{user.loan_user.approved_date || 'N/A'}</td>
+                                    <td>{new Date(user.loan_user.created_at).toLocaleString()}</td>
+                                    <td>{new Date(user.loan_user.updated_at).toLocaleString()}</td>
+                                    <td>{user.loan_user.deleted_at || 'N/A'}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
                             </div>
                           ) : (
                             <p className="text-sm text-blue-600">No loan user data found.</p>
@@ -409,51 +652,141 @@ export default function Users() {
                         </div>
 
                         {/* Loans */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-blue-900">Loans</h4>
+                        <div className="mb-6">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-2">Loans</h4>
                           {user.loans.length === 0 ? (
                             <p className="text-sm text-blue-600">No loans found.</p>
                           ) : (
                             user.loans.map((loan) => (
-                              <div key={loan.id} className="ml-4 mt-2 border-l border-blue-300 pl-4">
-                                <p className="text-sm text-blue-600">Loan Amount: {loan.loan_amount} ETB</p>
-                                <p className="text-sm text-blue-600">Status: {loan.status}</p>
-                                <p className="text-sm text-blue-600">Description: {loan.description}</p>
-                                <p className="text-sm text-blue-600">
-                                  Created At: {new Date(loan.created_at).toLocaleString()}
-                                </p>
+                              <div
+                                key={loan.id}
+                                className="ml-4 mt-2 bg-blue-200 p-3 rounded-md border-l-4 border-blue-400"
+                              >
+                                <div className="table-container">
+                                  <table>
+                                    <thead>
+                                      <tr>
+                                        <th>ID</th>
+                                        <th>Loan Code</th>
+                                        <th>User ID</th>
+                                        <th>Loan Amount</th>
+                                        <th>Loan Cap</th>
+                                        <th>Is Approved</th>
+                                        <th>Is All Amount Spent</th>
+                                        <th>Status</th>
+                                        <th>Payment Completed At</th>
+                                        <th>Repayment Rule</th>
+                                        <th>Description</th>
+                                        <th>Penalty ID</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Deleted At</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td>{loan.id}</td>
+                                        <td>{loan.loan_code || 'N/A'}</td>
+                                        <td>{loan.user_id}</td>
+                                        <td>{loan.loan_amount} ETB</td>
+                                        <td>{loan.loan_cap || 'N/A'}</td>
+                                        <td>{loan.is_approved ? 'Yes' : 'No'}</td>
+                                        <td>{loan.is_all_amount_spent ? 'Yes' : 'No'}</td>
+                                        <td>{loan.status}</td>
+                                        <td>{loan.payment_completed_at_date || 'N/A'}</td>
+                                        <td>{loan.repayment_rule || 'N/A'}</td>
+                                        <td>{loan.description || 'N/A'}</td>
+                                        <td>{loan.penalty_id || 'N/A'}</td>
+                                        <td>{new Date(loan.created_at).toLocaleString()}</td>
+                                        <td>{new Date(loan.updated_at).toLocaleString()}</td>
+                                        <td>{loan.deleted_at || 'N/A'}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
                                 {/* Loan Transactions */}
                                 <div className="mt-2">
-                                  <h5 className="text-sm font-medium text-blue-800">Loan Transactions</h5>
+                                  <h5 className="text-sm font-medium text-green-800 mb-1">Loan Transactions</h5>
                                   {loan.loan_transactions.length === 0 ? (
-                                    <p className="text-sm text-blue-600">No transactions found.</p>
+                                    <p className="text-sm text-green-600">No transactions found.</p>
                                   ) : (
-                                    loan.loan_transactions.map((transaction) => (
-                                      <div key={transaction.id} className="ml-4 mt-2 border-l border-blue-200 pl-4">
-                                        <p className="text-sm text-blue-600">Type: {transaction.type}</p>
-                                        <p className="text-sm text-blue-600">Amount: {transaction.amount} ETB</p>
-                                        <p className="text-sm text-blue-600">Status: {transaction.status || 'N/A'}</p>
-                                        <p className="text-sm text-blue-600">
-                                          Due Date:{' '}
-                                          {transaction.due_date
-                                            ? new Date(transaction.due_date).toLocaleString()
-                                            : 'N/A'}
-                                        </p>
-                                        <p className="text-sm text-blue-600">
-                                          Payment Method: {transaction.payment_method || 'N/A'}
-                                        </p>
-                                        {transaction.bank_to_pay_url && (
-                                          <a
-                                            href={transaction.bank_to_pay_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-blue-500 hover:underline"
-                                          >
-                                            Payment URL
-                                          </a>
-                                        )}
-                                      </div>
-                                    ))
+                                    <div className="table-container">
+                                      <table className="loan-transaction">
+                                        <thead>
+                                          <tr>
+                                            <th>ID</th>
+                                            <th>Transaction Code</th>
+                                            <th>Loan ID</th>
+                                            <th>Order ID</th>
+                                            <th>Amount</th>
+                                            <th>Penalty</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Paid Date</th>
+                                            <th>Due Date</th>
+                                            <th>Payment Method</th>
+                                            <th>Is Notified</th>
+                                            <th>Penalty ID</th>
+                                            <th>Request Payload</th>
+                                            <th>Transaction ID Banks</th>
+                                            <th>Response Payload</th>
+                                            <th>Bank Payment Logic</th>
+                                            <th>Bank Pay URL</th>
+                                            <th>Created At</th>
+                                            <th>Updated At</th>
+                                            <th>Deleted At</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {loan.loan_transactions.map((transaction) => (
+                                            <tr key={transaction.id}>
+                                              <td>{transaction.id}</td>
+                                              <td>{transaction.loan_transaction_code || 'N/A'}</td>
+                                              <td>{transaction.loan_id}</td>
+                                              <td>{transaction.order_id || 'N/A'}</td>
+                                              <td>{transaction.amount} ETB</td>
+                                              <td>{transaction.penalty} ETB</td>
+                                              <td>{transaction.type}</td>
+                                              <td>{transaction.status || 'N/A'}</td>
+                                              <td>
+                                                {transaction.paid_date
+                                                  ? new Date(transaction.paid_date).toLocaleString()
+                                                  : 'N/A'}
+                                              </td>
+                                              <td>
+                                                {transaction.due_date
+                                                  ? new Date(transaction.due_date).toLocaleString()
+                                                  : 'N/A'}
+                                              </td>
+                                              <td>{transaction.payment_method || 'N/A'}</td>
+                                              <td>{transaction.is_notified ? 'Yes' : 'No'}</td>
+                                              <td>{transaction.penalty_id || 'N/A'}</td>
+                                              <td>{transaction.request_payload || 'N/A'}</td>
+                                              <td>{transaction.transaction_id_banks || 'N/A'}</td>
+                                              <td>{transaction.response_payload || 'N/A'}</td>
+                                              <td>{transaction.bank_payment_logic_data || 'N/A'}</td>
+                                              <td>
+                                                {transaction.bank_to_pay_url ? (
+                                                  <a
+                                                    href={transaction.bank_to_pay_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-green-500 hover:underline"
+                                                  >
+                                                    Pay
+                                                  </a>
+                                                ) : (
+                                                  'N/A'
+                                                )}
+                                              </td>
+                                              <td>{new Date(transaction.created_at).toLocaleString()}</td>
+                                              <td>{new Date(transaction.updated_at).toLocaleString()}</td>
+                                              <td>{transaction.deleted_at || 'N/A'}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
                                   )}
                                 </div>
                               </div>
