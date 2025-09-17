@@ -5,23 +5,47 @@ import { useRouter, usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import NavigationBar from './components/NavigationBar';
 
+interface FaydaCustomer {
+  id: number;
+  user_id: number;
+  name: string;
+  email: string | null;
+  sub: string;
+  picture: string | null;
+  picture_path: string;
+  phone_number: string;
+  birthdate: string;
+  residence_status: string | null;
+  gender: string;
+  address: {
+    zone: string;
+    region: string;
+    woreda: string;
+  };
+  nationality: string | null;
+  is_verified: boolean | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 interface User {
   id: number;
   user_name: string | null;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   phone_number: string;
   is_verified: number;
   email_verified_at: string | null;
   firebase_token: string | null;
-  firebase_id: string;
+  firebase_id: string | null;
   cbe_birr_plus_token: string | null;
   image: string | null;
   cover_photo: string | null;
   provider_id: string | null;
   provider: string | null;
-  corporate_id: string | null;
+  corporate_id: number | null;
   wallet_balance: number;
   bypass_product_quantity_restriction: number;
   status: number;
@@ -44,13 +68,14 @@ interface User {
     updated_at: string;
     deleted_at: string | null;
   };
+  fayda_customers: FaydaCustomer[];
 }
 
 interface LoanTransaction {
   id: number;
   loan_transaction_code: string | null;
   loan_id: number;
-  order_id: string | null;
+  order_id: number | null;
   amount: string;
   penalty: string;
   type: string;
@@ -59,7 +84,7 @@ interface LoanTransaction {
   due_date: string | null;
   payment_method: string | null;
   is_notified: number;
-  penalty_id: string | null;
+  penalty_id: number | null;
   request_payload: string | null;
   transaction_id_banks: string | null;
   response_payload: string | null;
@@ -77,12 +102,12 @@ interface Loan {
   loan_amount: string;
   loan_cap: string | null;
   is_approved: number;
-  is_all_amount_spent: string | null;
+  is_all_amount_spent: boolean | null;
   status: string;
   payment_completed_at_date: string | null;
   repayment_rule: string | null;
-  description: string;
-  penalty_id: string | null;
+  description: string | null;
+  penalty_id: number | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -111,6 +136,7 @@ export default function Loans() {
     loans: false,
     loan_users: false,
     products: false,
+    users: false,
   });
 
   // Map routes to nav items
@@ -118,6 +144,7 @@ export default function Loans() {
     '/': 'loans',
     '/loan_users': 'loan_users',
     '/products': 'products',
+    '/users': 'users',
   };
   const currentRoute = routeMap[pathname] || '';
 
@@ -326,6 +353,7 @@ export default function Loans() {
                   ...loan.user,
                   ...updatedLoan.user,
                   loan_user: updatedLoan.user?.loan_user || loan.user.loan_user,
+                  fayda_customers: updatedLoan.user?.fayda_customers || loan.user.fayda_customers,
                 },
                 loan_transactions: updatedLoan.loan_transactions || loan.loan_transactions,
               }
@@ -352,6 +380,7 @@ export default function Loans() {
   const handleRefresh = () => {
     setLoans([]);
     setMeta(null);
+    setExpandedSections({});
     fetchData(currentPage);
   };
 
@@ -359,6 +388,47 @@ export default function Loans() {
 
   return (
     <main className="min-h-screen bg-blue-50 text-gray-900 p-4 sm:p-6">
+      {/* Spinner CSS */}
+      <style jsx>{`
+        .spinner {
+          display: inline-block;
+          width: 1.5rem;
+          height: 1.5rem;
+          border: 3px solid rgba(255, 255, 255, 0.3);
+          border-top: 3px solid #ffffff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .table-container {
+          overflow-x: auto;
+          width: 100%;
+        }
+        .table-container table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .table-container th,
+        .table-container td {
+          padding: 8px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb;
+          white-space: nowrap;
+        }
+        .table-container th {
+          background-color: #f3f4f6;
+          font-weight: 600;
+          color: #1e40af;
+        }
+        .table-container td {
+          color: #1e40af;
+        }
+      `}</style>
+
       {/* Navigation Bar */}
       <NavigationBar
         navLoading={navLoading}
@@ -640,7 +710,7 @@ export default function Loans() {
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Loan Amount</div>
-                            <div>{renderValue(loan.loan_amount)}</div>
+                            <div>{renderValue(loan.loan_amount)} ETB</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Loan Cap</div>
@@ -652,7 +722,7 @@ export default function Loans() {
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Is All Amount Spent</div>
-                            <div>{renderValue(loan.is_all_amount_spent)}</div>
+                            <div>{loan.is_all_amount_spent ? 'Yes' : 'No'}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Status</div>
@@ -693,6 +763,95 @@ export default function Loans() {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Fayda Customers Section (Collapsible) */}
+                  <div className="mb-4">
+                    <div 
+                      className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
+                      onClick={() => toggleSection(loan.id, 'fayda_customers')}
+                    >
+                      {sections.has('fayda_customers') ? '▲ Hide Fayda Customers' : '▼ Show Fayda Customers'}
+                    </div>
+                    <AnimatePresence>
+                      {sections.has('fayda_customers') && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mb-6 bg-blue-50 p-4 rounded-md border border-blue-200">
+                            <h4 className="text-sm font-semibold text-blue-900 mb-2">Fayda Customers</h4>
+                            {loan.user.fayda_customers.length === 0 ? (
+                              <p className="text-sm text-blue-600">No fayda customers found.</p>
+                            ) : (
+                              <div className="table-container">
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th>ID</th>
+                                      <th>Name</th>
+                                      <th>Email</th>
+                                      <th>Sub</th>
+                                      <th>Phone Number</th>
+                                      <th>Birthdate</th>
+                                      <th>Residence Status</th>
+                                      <th>Gender</th>
+                                      <th>Address</th>
+                                      <th>Nationality</th>
+                                      <th>Is Verified</th>
+                                      <th>Created At</th>
+                                      <th>Updated At</th>
+                                      <th>Deleted At</th>
+                                      <th>Picture</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {loan.user.fayda_customers.map((fayda) => (
+                                      <tr key={fayda.id}>
+                                        <td>{renderValue(fayda.id)}</td>
+                                        <td>{renderValue(fayda.name)}</td>
+                                        <td>{renderValue(fayda.email)}</td>
+                                        <td>{renderValue(fayda.sub)}</td>
+                                        <td>{renderValue(fayda.phone_number)}</td>
+                                        <td>{renderValue(fayda.birthdate)}</td>
+                                        <td>{renderValue(fayda.residence_status)}</td>
+                                        <td>{renderValue(fayda.gender)}</td>
+                                        <td>
+                                          {fayda.address
+                                            ? `${fayda.address.region}, ${fayda.address.zone}, ${fayda.address.woreda}`
+                                            : 'N/A'}
+                                        </td>
+                                        <td>{renderValue(fayda.nationality)}</td>
+                                        <td>{fayda.is_verified ? 'Yes' : 'No'}</td>
+                                        <td>{renderValue(new Date(fayda.created_at).toLocaleString())}</td>
+                                        <td>{renderValue(new Date(fayda.updated_at).toLocaleString())}</td>
+                                        <td>{renderValue(fayda.deleted_at)}</td>
+                                        <td>
+                                          {fayda.picture_path ? (
+                                            <img
+                                              src={`https://api.seregelagebeya.com/${fayda.picture_path}`}
+                                              alt={fayda.name}
+                                              className="w-16 h-16 object-cover rounded-md"
+                                              onError={(e) => {
+                                                e.currentTarget.src = '/placeholder.png';
+                                              }}
+                                            />
+                                          ) : (
+                                            'N/A'
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* User Details Section (Collapsible) */}
@@ -752,7 +911,7 @@ export default function Loans() {
                                 </div>
                                 <div>
                                   <div className="font-semibold text-blue-700">Wallet Balance</div>
-                                  <div>{renderValue(loan.user.wallet_balance)}</div>
+                                  <div>{renderValue(loan.user.wallet_balance)} ETB</div>
                                 </div>
                                 <div>
                                   <div className="font-semibold text-blue-700">Bypass Quantity Restriction</div>
@@ -818,7 +977,7 @@ export default function Loans() {
                                     </div>
                                     <div>
                                       <div className="font-semibold text-blue-700">Loan Balance</div>
-                                      <div>{renderValue(loan.user.loan_user.loan_balance)}</div>
+                                      <div>{renderValue(loan.user.loan_user.loan_balance)} ETB</div>
                                     </div>
                                     <div>
                                       <div className="font-semibold text-blue-700">Loan Cap</div>
@@ -870,7 +1029,7 @@ export default function Loans() {
                           exit={{ opacity: 0, height: 0 }}
                           className="overflow-hidden"
                         >
-                          <div className="overflow-x-auto">
+                          <div className="table-container">
                             <table className="min-w-full text-sm bg-blue-50 rounded-lg border border-blue-200">
                               <thead>
                                 <tr className="bg-blue-100">
@@ -904,8 +1063,8 @@ export default function Loans() {
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.order_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)} ETB</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)} ETB</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.type)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.status)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.paid_date ? new Date(transaction.paid_date).toLocaleString() : 'N/A')}</td>
@@ -917,7 +1076,20 @@ export default function Loans() {
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.transaction_id_banks)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.response_payload)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_payment_logic_data)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_to_pay_url)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">
+                                      {transaction.bank_to_pay_url ? (
+                                        <a
+                                          href={transaction.bank_to_pay_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-500 hover:underline"
+                                        >
+                                          Pay
+                                        </a>
+                                      ) : (
+                                        'N/A'
+                                      )}
+                                    </td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>

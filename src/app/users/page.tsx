@@ -152,6 +152,7 @@ export default function Users() {
   });
   const [loanApplying, setLoanApplying] = useState<{ [key: number]: boolean }>({});
   const [loanApplyError, setLoanApplyError] = useState<{ [key: number]: string | null }>({});
+  const [loanApplySuccess, setLoanApplySuccess] = useState<{ [key: number]: string | null }>({});
 
   // Map routes to nav items
   const routeMap: { [key: string]: string } = {
@@ -224,6 +225,7 @@ export default function Users() {
 
     setLoanApplying((prev) => ({ ...prev, [userId]: true }));
     setLoanApplyError((prev) => ({ ...prev, [userId]: null }));
+    setLoanApplySuccess((prev) => ({ ...prev, [userId]: null }));
 
     try {
       const formData = new FormData();
@@ -255,6 +257,12 @@ export default function Users() {
           user.id === userId ? { ...user, loans: [...user.loans, newLoan] } : user
         )
       );
+      setLoanApplySuccess((prev) => ({ ...prev, [userId]: 'Loan applied successfully!' }));
+
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setLoanApplySuccess((prev) => ({ ...prev, [userId]: null }));
+      }, 5000);
     } catch (e) {
       console.warn('Error applying for loan for user', userId, e);
       setLoanApplyError((prev) => ({ ...prev, [userId]: 'Error applying for loan' }));
@@ -280,6 +288,7 @@ export default function Users() {
     setCurrentPage(1);
     setFilters({ phone_number: '' });
     setLoanApplyError({});
+    setLoanApplySuccess({});
     fetchUsers();
   };
 
@@ -296,7 +305,13 @@ export default function Users() {
   };
 
   const toggleUserExpand = (userId: number) => {
-    setExpandedUserId(expandedUserId === userId ? null : userId);
+    if (expandedUserId !== userId) {
+      setExpandedUserId(userId); // Expand if not already expanded
+    }
+  };
+
+  const handleCollapse = (userId: number) => {
+    setExpandedUserId(null); // Collapse when button is clicked
   };
 
   return (
@@ -361,10 +376,28 @@ export default function Users() {
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-900">Users Dashboard</h1>
       </header>
 
-      {/* Filter Section */}
+      {/* Filter and Refresh Section */}
       <div className="mb-6 mx-4 sm:mx-6">
         <div className="bg-white p-4 rounded-lg shadow border border-blue-100">
-          <h2 className="text-lg font-semibold text-blue-900 mb-4">Filter Users</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-blue-900">Filter Users</h2>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                loading ? 'bg-blue-900 text-white cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner mr-2" />
+                  Refreshing...
+                </>
+              ) : (
+                'Refresh'
+              )}
+            </button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-blue-700">Phone Number</label>
@@ -422,39 +455,53 @@ export default function Users() {
                     className="flex justify-between items-center cursor-pointer mb-4"
                     onClick={() => toggleUserExpand(user.id)}
                   >
-                    <div>
-                      <h3 className="text-lg font-semibold text-blue-900">{user.name}</h3>
-                      <p className="text-sm text-blue-600">ID: {user.id}</p>
-                    </div>
                     <div className="flex items-center space-x-4">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleApplyLoan(user.id);
+                          if (expandedUserId === user.id) {
+                            handleCollapse(user.id);
+                          } else {
+                            toggleUserExpand(user.id);
+                          }
                         }}
-                        disabled={loanApplying[user.id]}
-                        className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          loanApplying[user.id]
-                            ? 'bg-blue-900 text-white cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
                       >
-                        {loanApplying[user.id] ? (
-                          <>
-                            <span className="spinner mr-2" />
-                            Applying...
-                          </>
-                        ) : (
-                          'Apply for Loan'
-                        )}
-                      </button>
-                      <span className="text-blue-600 font-medium">
                         {expandedUserId === user.id ? 'Collapse' : 'Expand'}
-                      </span>
+                      </button>
+                      <div>
+                        <p className="text-lg font-bold text-blue-900">{user.phone_number}</p>
+                        <p className="text-lg font-bold text-blue-900">{user.name}</p>
+                        <p className="text-sm text-blue-600">ID: {user.id}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleApplyLoan(user.id);
+                      }}
+                      disabled={loanApplying[user.id]}
+                      className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        loanApplying[user.id]
+                          ? 'bg-blue-900 text-white cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {loanApplying[user.id] ? (
+                        <>
+                          <span className="spinner mr-2" />
+                          Applying...
+                        </>
+                      ) : (
+                        'Apply for Loan'
+                      )}
+                    </button>
                   </div>
                   {loanApplyError[user.id] && (
                     <p className="text-sm text-red-600 mb-4">{loanApplyError[user.id]}</p>
+                  )}
+                  {loanApplySuccess[user.id] && (
+                    <p className="text-sm text-green-600 mb-4">{loanApplySuccess[user.id]}</p>
                   )}
                   {/* User Details Table */}
                   <div className="table-container mb-4">
