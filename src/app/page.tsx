@@ -131,6 +131,7 @@ export default function Loans() {
   const [isApprovedSearch, setIsApprovedSearch] = useState('');
   const [statusSearch, setStatusSearch] = useState('');
   const [descriptionSearch, setDescriptionSearch] = useState('');
+  const [phoneNumberSearch, setPhoneNumberSearch] = useState('');
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [navLoading, setNavLoading] = useState<{ [key: string]: boolean }>({
     loans: false,
@@ -165,6 +166,7 @@ export default function Loans() {
       if (isApprovedSearch) url += `&is_approved_search=${encodeURIComponent(isApprovedSearch)}`;
       if (statusSearch) url += `&status_search=${encodeURIComponent(statusSearch)}`;
       if (descriptionSearch) url += `&description_search=${encodeURIComponent(descriptionSearch)}`;
+      if (phoneNumberSearch) url += `&phone_number_search=${encodeURIComponent(phoneNumberSearch)}`;
 
       const res = await fetch(url, {
         headers: {
@@ -199,7 +201,7 @@ export default function Loans() {
     } finally {
       setLoading(false);
     }
-  }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, router]);
+  }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -216,7 +218,7 @@ export default function Loans() {
     return () => {
       clearTimeout(handler);
     };
-  }, [userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, router]);
+  }, [userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -268,6 +270,7 @@ export default function Loans() {
     setIsApprovedSearch('');
     setStatusSearch('');
     setDescriptionSearch('');
+    setPhoneNumberSearch('');
     setSearchTrigger(prev => prev + 1);
   };
 
@@ -526,6 +529,17 @@ export default function Loans() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-blue-700 mb-1">Phone Number</label>
+            <input
+              type="text"
+              value={phoneNumberSearch}
+              onChange={(e) => setPhoneNumberSearch(e.target.value)}
+              className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter phone number"
+            />
+          </div>
+
           <div className="col-span-full flex justify-end space-x-2 mt-2">
             <button
               type="submit"
@@ -694,6 +708,33 @@ export default function Loans() {
                     )}
                   </AnimatePresence>
 
+                  {/* User Summary Section (Always Visible, Horizontal) */}
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold text-blue-900 mb-2">User Summary</h2>
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm border border-blue-200 rounded-lg p-4">
+                          <div>
+                            <div className="font-semibold text-blue-700">First Name</div>
+                            <div className="text-1e40af">{renderValue(loan.user.first_name)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Last Name</div>
+                            <div className="text-1e40af">{renderValue(loan.user.last_name)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Email</div>
+                            <div className="text-1e40af">{renderValue(loan.user.email)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Phone Number</div>
+                            <div className="text-1e40af">{renderValue(loan.user.phone_number)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Loan Details Section (Always Visible) */}
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold text-blue-900 mb-2">Loan Details</h2>
@@ -702,63 +743,63 @@ export default function Loans() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm border border-blue-200 rounded-lg p-4">
                           <div>
                             <div className="font-semibold text-blue-700">Loan ID</div>
-                            <div>{renderValue(loan.id)}</div>
+                            <div className="text-1e40af">{renderValue(loan.id)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Loan Code</div>
-                            <div>{renderValue(loan.loan_code)}</div>
+                            <div className="text-1e40af">{renderValue(loan.loan_code)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Loan Amount</div>
-                            <div>{renderValue(loan.loan_amount)} ETB</div>
+                            <div className="text-1e40af">{renderValue(loan.loan_amount)} ETB</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Loan Cap</div>
-                            <div>{renderValue(loan.loan_cap)}</div>
+                            <div className="text-1e40af">{renderValue(loan.loan_cap)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Is Approved</div>
-                            <div>{loan.is_approved ? 'Yes' : 'No'}</div>
+                            <div className="text-1e40af">{loan.is_approved ? 'Yes' : 'No'}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Is All Amount Spent</div>
-                            <div>{loan.is_all_amount_spent ? 'Yes' : 'No'}</div>
+                            <div className="text-1e40af">{loan.is_all_amount_spent ? 'Yes' : 'No'}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Status</div>
-                            <div>{renderValue(loan.status)}</div>
+                            <div className="text-1e40af">{renderValue(loan.status)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Payment Completed At</div>
-                            <div>{renderValue(loan.payment_completed_at_date)}</div>
+                            <div className="text-1e40af">{renderValue(loan.payment_completed_at_date)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Repayment Rule</div>
-                            <div>{renderValue(loan.repayment_rule)}</div>
+                            <div className="text-1e40af">{renderValue(loan.repayment_rule)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Description</div>
-                            <div>{renderValue(loan.description)}</div>
+                            <div className="text-1e40af">{renderValue(loan.description)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Penalty ID</div>
-                            <div>{renderValue(loan.penalty_id)}</div>
+                            <div className="text-1e40af">{renderValue(loan.penalty_id)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">User ID</div>
-                            <div>{renderValue(loan.user_id)}</div>
+                            <div className="text-1e40af">{renderValue(loan.user_id)}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Created At</div>
-                            <div>{renderValue(new Date(loan.created_at).toLocaleString())}</div>
+                            <div className="text-1e40af">{renderValue(new Date(loan.created_at).toLocaleString())}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Updated At</div>
-                            <div>{renderValue(new Date(loan.updated_at).toLocaleString())}</div>
+                            <div className="text-1e40af">{renderValue(new Date(loan.updated_at).toLocaleString())}</div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Deleted At</div>
-                            <div>{renderValue(loan.deleted_at)}</div>
+                            <div className="text-1e40af">{renderValue(loan.deleted_at)}</div>
                           </div>
                         </div>
                       </div>
