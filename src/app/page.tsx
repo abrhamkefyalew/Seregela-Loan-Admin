@@ -159,7 +159,7 @@ export default function Loans() {
 
     setLoading(true);
     try {
-      let url = `https://api.seregelagebeya.com/api/v1/loans?page=${page}&per_page=${paginateCount}`;
+      let url = `https://api.seregelagebeya.com/api/v1/loans?page=${page}&paginate=${paginateCount}`;
       
       if (userIdSearch) url += `&user_id_search=${encodeURIComponent(userIdSearch)}`;
       if (loanAmountSearch) url += `&loan_amount_search=${encodeURIComponent(loanAmountSearch)}`;
