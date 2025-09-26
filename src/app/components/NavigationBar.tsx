@@ -46,6 +46,7 @@ export default function NavigationBar({ navLoading, setNavLoading, currentRoute,
               { key: 'loan_users', label: 'Loan Users', route: '/loan_users' },
               { key: 'products', label: 'Products', route: '/products' },
               { key: 'users', label: 'Users', route: '/users' },
+              { key: 'overdue_loans', label: 'Overdue Loans', route: '/overdue_loans' },
             ].map(({ key, label, route }) => (
               <button
                 key={key}

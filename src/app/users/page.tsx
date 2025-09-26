@@ -812,7 +812,8 @@ export default function Users() {
                                               <td>{transaction.transaction_id_banks || 'N/A'}</td>
                                               <td>{transaction.response_payload || 'N/A'}</td>
                                               <td>{transaction.bank_payment_logic_data || 'N/A'}</td>
-                                              <td>
+                                              <td>{transaction.bank_to_pay_url || 'N/A'}</td>
+                                              {/* <td>
                                                 {transaction.bank_to_pay_url ? (
                                                   <a
                                                     href={transaction.bank_to_pay_url}
@@ -825,7 +826,7 @@ export default function Users() {
                                                 ) : (
                                                   'N/A'
                                                 )}
-                                              </td>
+                                              </td> */}
                                               <td>{new Date(transaction.created_at).toLocaleString()}</td>
                                               <td>{new Date(transaction.updated_at).toLocaleString()}</td>
                                               <td>{transaction.deleted_at || 'N/A'}</td>

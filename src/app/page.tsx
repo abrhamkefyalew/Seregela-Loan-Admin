@@ -1117,7 +1117,8 @@ export default function Loans() {
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.transaction_id_banks)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.response_payload)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_payment_logic_data)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_to_pay_url)}</td>
+                                    {/* <td className="px-3 py-2 border-b border-blue-200">
                                       {transaction.bank_to_pay_url ? (
                                         <a
                                           href={transaction.bank_to_pay_url}
@@ -1130,7 +1131,7 @@ export default function Loans() {
                                       ) : (
                                         'N/A'
                                       )}
-                                    </td>
+                                    </td> */}
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>
