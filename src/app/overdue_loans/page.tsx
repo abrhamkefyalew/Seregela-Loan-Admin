@@ -789,7 +789,7 @@ export default function OverdueLoans() {
                                                   <td className="px-3 py-2 border-b border-blue-200">
                                                     {transaction.type === 'LOAN_REPAYMENT' && transaction.status === 'NOT_PAID' && !transaction.paid_date ? (
                                                       <div className="flex space-x-2">
-                                                        <button
+                                                        {/* <button
                                                           onClick={() => handlePay(transaction.id)}
                                                           disabled={paying[transaction.id]}
                                                           className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
@@ -806,7 +806,7 @@ export default function OverdueLoans() {
                                                           ) : (
                                                             'Pay'
                                                           )}
-                                                        </button>
+                                                        </button> */}
                                                         <button
                                                           onClick={() => handleSendSMS(transaction.id)}
                                                           disabled={sendingSMS[transaction.id]}
