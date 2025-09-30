@@ -1087,11 +1087,11 @@ export default function Loans() {
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Payment Method</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Is Notified</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Penalty ID</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Request Payload</th>
+                                  {/* <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Request Payload</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Transaction ID Banks</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Response Payload</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank Payment Logic Data</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank To Pay URL</th>
+                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank To Pay URL</th> */}
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Created At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Updated At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Deleted At</th>
@@ -1113,11 +1113,11 @@ export default function Loans() {
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.request_payload)}</td>
+                                    {/* <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.request_payload)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.transaction_id_banks)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.response_payload)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_payment_logic_data)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_to_pay_url)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_to_pay_url)}</td> */}
                                     {/* <td className="px-3 py-2 border-b border-blue-200">
                                       {transaction.bank_to_pay_url ? (
                                         <a
