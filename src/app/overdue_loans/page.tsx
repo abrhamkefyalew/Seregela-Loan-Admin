@@ -845,7 +845,7 @@ export default function OverdueLoans() {
                                                             'Send SMS'
                                                           )}
                                                         </button>
-                                                        <button
+                                                        {/* <button
                                                           onClick={() => handlePay(transaction.id)}
                                                           disabled={paying[transaction.id]}
                                                           className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
@@ -862,7 +862,7 @@ export default function OverdueLoans() {
                                                           ) : (
                                                             'Pay'
                                                           )}
-                                                        </button>
+                                                        </button> */}
                                                       </div>
                                                     ) : (
                                                       'N/A'
