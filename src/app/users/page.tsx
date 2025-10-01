@@ -334,12 +334,16 @@ export default function Users() {
 
   // Utility function to determine transaction row class
   const getTransactionClass = (transaction: LoanTransaction) => {
+    console.log(`Transaction ID: ${transaction.id}, Type: ${transaction.type}, Status: ${transaction.status}, Paid Date: ${transaction.paid_date}`);
     if (transaction.type === 'LOAN_REPAYMENT') {
       if (transaction.status === 'NOT_PAID' && transaction.paid_date === null) {
+        console.log(`Transaction ${transaction.id} is UNPAID (Red)`);
         return 'loan-transaction-unpaid';
       }
+      console.log(`Transaction ${transaction.id} is PAID (Green)`);
       return 'loan-transaction-paid';
     }
+    console.log(`Transaction ${transaction.id} is NORMAL (Default)`);
     return 'loan-transaction-normal';
   };
 
@@ -385,13 +389,25 @@ export default function Users() {
           color: #1e40af;
         }
         .loan-transaction-unpaid {
-          color: #b91c1c;
+          background-color: #fee2e2;
+          color: #b91c1c !important;
+        }
+        .loan-transaction-unpaid td {
+          color: #b91c1c !important;
         }
         .loan-transaction-paid {
-          color: #15803d;
+          background-color: #dcfce7;
+          color: #15803d !important;
+        }
+        .loan-transaction-paid td {
+          color: #15803d !important;
         }
         .loan-transaction-normal {
-          color: #1e40af;
+          background-color: #eff6ff;
+          color: #1e40af !important;
+        }
+        .loan-transaction-normal td {
+          color: #1e40af !important;
         }
       `}</style>
 
