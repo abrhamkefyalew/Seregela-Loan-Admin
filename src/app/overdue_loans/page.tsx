@@ -73,7 +73,7 @@ interface Loan {
   is_all_amount_spent: boolean | null;
   status: string;
   payment_completed_at_date: string | null;
-  repayment_rule: string | null;
+  repayment_rule: string | { term_months: string } | null; // Updated to handle both string and object
   description: string | null;
   penalty_id: number | null;
   created_at: string;
@@ -141,6 +141,15 @@ export default function OverdueLoans() {
     '/overdue_loans': 'overdue_loans',
   };
   const currentRoute = routeMap[pathname] || '';
+
+  // Updated renderValue to handle objects
+  const renderValue = (value: any) => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'object' && 'term_months' in value) {
+      return `${value.term_months} month${Number(value.term_months) !== 1 ? 's' : ''}`;
+    }
+    return value;
+  };
 
   const fetchData = useCallback(async (page = 1) => {
     const token = localStorage.getItem('authToken');
@@ -301,7 +310,7 @@ export default function OverdueLoans() {
 
     setCurrentPage(1);
     fetchData(1);
-  }, [searchTrigger]);
+  }, [searchTrigger, fetchData]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -348,8 +357,6 @@ export default function OverdueLoans() {
     setExpandedSections({});
     fetchData(currentPage);
   };
-
-  const renderValue = (value: any) => (value === null || value === undefined ? 'N/A' : value);
 
   return (
     <main className="min-h-screen bg-blue-50 text-gray-900 p-4 sm:p-6">
@@ -773,11 +780,6 @@ export default function OverdueLoans() {
                                                 <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Payment Method</th>
                                                 <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Is Notified</th>
                                                 <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Penalty ID</th>
-                                                {/* <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Request Payload</th>
-                                                <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Transaction ID Banks</th>
-                                                <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Response Payload</th>
-                                                <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank Payment Logic Data</th>
-                                                <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank To Pay URL</th> */}
                                                 <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Created At</th>
                                                 <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Updated At</th>
                                                 <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Deleted At</th>
@@ -789,24 +791,6 @@ export default function OverdueLoans() {
                                                   <td className="px-3 py-2 border-b border-blue-200">
                                                     {transaction.type === 'LOAN_REPAYMENT' && transaction.status === 'NOT_PAID' && !transaction.paid_date ? (
                                                       <div className="flex space-x-2">
-                                                        {/* <button
-                                                          onClick={() => handlePay(transaction.id)}
-                                                          disabled={paying[transaction.id]}
-                                                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                                                            paying[transaction.id]
-                                                              ? 'bg-blue-900 text-white cursor-not-allowed'
-                                                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                                                          }`}
-                                                        >
-                                                          {paying[transaction.id] ? (
-                                                            <>
-                                                              <span className="spinner mr-2" />
-                                                              Paying...
-                                                            </>
-                                                          ) : (
-                                                            'Pay'
-                                                          )}
-                                                        </button> */}
                                                         <button
                                                           onClick={() => handleSendSMS(transaction.id)}
                                                           disabled={sendingSMS[transaction.id]}
@@ -843,11 +827,6 @@ export default function OverdueLoans() {
                                                   <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
                                                   <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
                                                   <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
-                                                  {/* <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.request_payload)}</td>
-                                                  <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.transaction_id_banks)}</td>
-                                                  <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.response_payload)}</td>
-                                                  <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_payment_logic_data)}</td>
-                                                  <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_to_pay_url)}</td> */}
                                                   <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
                                                   <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
                                                   <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>

@@ -73,7 +73,7 @@ interface Loan {
   is_all_amount_spent: boolean | null;
   status: string;
   payment_completed_at_date: string | null;
-  repayment_rule: string | null;
+  repayment_rule: string | { term_months: string } | null;
   description: string;
   penalty_id: number | null;
   created_at: string;
@@ -153,6 +153,7 @@ export default function Users() {
   const [loanApplying, setLoanApplying] = useState<{ [key: number]: boolean }>({});
   const [loanApplyError, setLoanApplyError] = useState<{ [key: number]: string | null }>({});
   const [loanApplySuccess, setLoanApplySuccess] = useState<{ [key: number]: string | null }>({});
+  const [expandedLoanTransactions, setExpandedLoanTransactions] = useState<{ [key: number]: boolean }>({});
 
   // Map routes to nav items
   const routeMap: { [key: string]: string } = {
@@ -162,6 +163,15 @@ export default function Users() {
     '/users': 'users',
   };
   const currentRoute = routeMap[pathname] || '';
+
+  // Utility function to render values safely
+  const renderValue = (value: any) => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'object' && 'term_months' in value) {
+      return `${value.term_months} month${Number(value.term_months) !== 1 ? 's' : ''}`;
+    }
+    return value;
+  };
 
   const buildQueryParams = () => {
     const params = new URLSearchParams();
@@ -289,6 +299,7 @@ export default function Users() {
     setFilters({ phone_number: '' });
     setLoanApplyError({});
     setLoanApplySuccess({});
+    setExpandedLoanTransactions({});
     fetchUsers();
   };
 
@@ -312,6 +323,24 @@ export default function Users() {
 
   const handleCollapse = (userId: number) => {
     setExpandedUserId(null); // Collapse when button is clicked
+  };
+
+  const toggleLoanTransactions = (loanId: number) => {
+    setExpandedLoanTransactions((prev) => ({
+      ...prev,
+      [loanId]: !prev[loanId],
+    }));
+  };
+
+  // Utility function to determine transaction row class
+  const getTransactionClass = (transaction: LoanTransaction) => {
+    if (transaction.type === 'LOAN_REPAYMENT') {
+      if (transaction.status === 'NOT_PAID' && transaction.paid_date === null) {
+        return 'loan-transaction-unpaid';
+      }
+      return 'loan-transaction-paid';
+    }
+    return 'loan-transaction-normal';
   };
 
   return (
@@ -355,12 +384,14 @@ export default function Users() {
         .table-container td {
           color: #1e40af;
         }
-        .loan-transaction th,
-        .loan-transaction td {
+        .loan-transaction-unpaid {
+          color: #b91c1c;
+        }
+        .loan-transaction-paid {
           color: #15803d;
         }
-        .loan-transaction th {
-          background-color: #dcfce7;
+        .loan-transaction-normal {
+          color: #1e40af;
         }
       `}</style>
 
@@ -474,6 +505,19 @@ export default function Users() {
                         <p className="text-lg font-bold text-blue-900">{user.name}</p>
                         <p className="text-sm text-blue-600">ID: {user.id}</p>
                       </div>
+                      {/* Add Fayda Customer Picture */}
+                      {user.fayda_customers[0]?.picture_path ? (
+                        <img
+                          src={user.fayda_customers[0].picture_path}
+                          alt={user.fayda_customers[0].name || 'Fayda Customer'}
+                          className="w-16 h-16 object-cover rounded-md"
+                          onError={(e) => {
+                            e.currentTarget.src = '/placeholder.png';
+                          }}
+                        />
+                      ) : (
+                        <span className="text-sm text-blue-600">No Picture</span>
+                      )}
                     </div>
                     <button
                       onClick={(e) => {
@@ -533,25 +577,25 @@ export default function Users() {
                       </thead>
                       <tbody>
                         <tr>
-                          <td>{user.id}</td>
-                          <td>{user.name}</td>
-                          <td>{user.user_name || 'N/A'}</td>
-                          <td>{user.first_name}</td>
-                          <td>{user.last_name}</td>
-                          <td>{user.email}</td>
-                          <td>{user.phone_number}</td>
-                          <td>{user.email_verified_at || 'N/A'}</td>
+                          <td>{renderValue(user.id)}</td>
+                          <td>{renderValue(user.name)}</td>
+                          <td>{renderValue(user.user_name)}</td>
+                          <td>{renderValue(user.first_name)}</td>
+                          <td>{renderValue(user.last_name)}</td>
+                          <td>{renderValue(user.email)}</td>
+                          <td>{renderValue(user.phone_number)}</td>
+                          <td>{renderValue(user.email_verified_at)}</td>
                           <td>{user.is_active ? 'Yes' : 'No'}</td>
                           <td>{user.is_pin_updated ? 'Yes' : 'No'}</td>
                           <td>{user.is_corporate_manager ? 'Yes' : 'No'}</td>
                           <td>{user.is_system_user ? 'Yes' : 'No'}</td>
-                          <td>{user.corporate_id || 'N/A'}</td>
+                          <td>{renderValue(user.corporate_id)}</td>
                           <td>{user.bypass_product_quantity_restriction ? 'Yes' : 'No'}</td>
                           <td>{user.special_discount ? 'Yes' : 'No'}</td>
-                          <td>{user.wallet_balance} ETB</td>
-                          <td>{new Date(user.created_at).toLocaleString()}</td>
-                          <td>{new Date(user.updated_at).toLocaleString()}</td>
-                          <td>{user.deleted_at || 'N/A'}</td>
+                          <td>{renderValue(user.wallet_balance)} ETB</td>
+                          <td>{renderValue(new Date(user.created_at).toLocaleString())}</td>
+                          <td>{renderValue(new Date(user.updated_at).toLocaleString())}</td>
+                          <td>{renderValue(user.deleted_at)}</td>
                           <td>
                             {user.address
                               ? `${user.address.neighborhood}, ${user.address.house_number}${
@@ -619,24 +663,24 @@ export default function Users() {
                                 <tbody>
                                   {user.fayda_customers.map((fayda) => (
                                     <tr key={fayda.id}>
-                                      <td>{fayda.id}</td>
-                                      <td>{fayda.name}</td>
-                                      <td>{fayda.email || 'N/A'}</td>
-                                      <td>{fayda.sub}</td>
-                                      <td>{fayda.phone_number}</td>
-                                      <td>{fayda.birthdate}</td>
-                                      <td>{fayda.residence_status || 'N/A'}</td>
-                                      <td>{fayda.gender}</td>
+                                      <td>{renderValue(fayda.id)}</td>
+                                      <td>{renderValue(fayda.name)}</td>
+                                      <td>{renderValue(fayda.email)}</td>
+                                      <td>{renderValue(fayda.sub)}</td>
+                                      <td>{renderValue(fayda.phone_number)}</td>
+                                      <td>{renderValue(fayda.birthdate)}</td>
+                                      <td>{renderValue(fayda.residence_status)}</td>
+                                      <td>{renderValue(fayda.gender)}</td>
                                       <td>
                                         {fayda.address
                                           ? `${fayda.address.region}, ${fayda.address.zone}, ${fayda.address.woreda}`
                                           : 'N/A'}
                                       </td>
-                                      <td>{fayda.nationality || 'N/A'}</td>
+                                      <td>{renderValue(fayda.nationality)}</td>
                                       <td>{fayda.is_verified ? 'Yes' : 'No'}</td>
-                                      <td>{new Date(fayda.created_at).toLocaleString()}</td>
-                                      <td>{new Date(fayda.updated_at).toLocaleString()}</td>
-                                      <td>{fayda.deleted_at || 'N/A'}</td>
+                                      <td>{renderValue(new Date(fayda.created_at).toLocaleString())}</td>
+                                      <td>{renderValue(new Date(fayda.updated_at).toLocaleString())}</td>
+                                      <td>{renderValue(fayda.deleted_at)}</td>
                                       <td>
                                         {fayda.picture_path ? (
                                           <img
@@ -680,15 +724,15 @@ export default function Users() {
                                 </thead>
                                 <tbody>
                                   <tr>
-                                    <td>{user.loan_user.id}</td>
-                                    <td>{user.loan_user.user_id}</td>
-                                    <td>{user.loan_user.loan_balance} ETB</td>
-                                    <td>{user.loan_user.loan_cap} ETB</td>
+                                    <td>{renderValue(user.loan_user.id)}</td>
+                                    <td>{renderValue(user.loan_user.user_id)}</td>
+                                    <td>{renderValue(user.loan_user.loan_balance)} ETB</td>
+                                    <td>{renderValue(user.loan_user.loan_cap)} ETB</td>
                                     <td>{user.loan_user.is_approved ? 'Yes' : 'No'}</td>
-                                    <td>{user.loan_user.approved_date || 'N/A'}</td>
-                                    <td>{new Date(user.loan_user.created_at).toLocaleString()}</td>
-                                    <td>{new Date(user.loan_user.updated_at).toLocaleString()}</td>
-                                    <td>{user.loan_user.deleted_at || 'N/A'}</td>
+                                    <td>{renderValue(user.loan_user.approved_date)}</td>
+                                    <td>{renderValue(new Date(user.loan_user.created_at).toLocaleString())}</td>
+                                    <td>{renderValue(new Date(user.loan_user.updated_at).toLocaleString())}</td>
+                                    <td>{renderValue(user.loan_user.deleted_at)}</td>
                                   </tr>
                                 </tbody>
                               </table>
@@ -732,110 +776,122 @@ export default function Users() {
                                     </thead>
                                     <tbody>
                                       <tr>
-                                        <td>{loan.id}</td>
-                                        <td>{loan.loan_code || 'N/A'}</td>
-                                        <td>{loan.user_id}</td>
-                                        <td>{loan.loan_amount} ETB</td>
-                                        <td>{loan.loan_cap || 'N/A'}</td>
+                                        <td>{renderValue(loan.id)}</td>
+                                        <td>{renderValue(loan.loan_code)}</td>
+                                        <td>{renderValue(loan.user_id)}</td>
+                                        <td>{renderValue(loan.loan_amount)} ETB</td>
+                                        <td>{renderValue(loan.loan_cap)}</td>
                                         <td>{loan.is_approved ? 'Yes' : 'No'}</td>
                                         <td>{loan.is_all_amount_spent ? 'Yes' : 'No'}</td>
-                                        <td>{loan.status}</td>
-                                        <td>{loan.payment_completed_at_date || 'N/A'}</td>
-                                        <td>{loan.repayment_rule || 'N/A'}</td>
-                                        <td>{loan.description || 'N/A'}</td>
-                                        <td>{loan.penalty_id || 'N/A'}</td>
-                                        <td>{new Date(loan.created_at).toLocaleString()}</td>
-                                        <td>{new Date(loan.updated_at).toLocaleString()}</td>
-                                        <td>{loan.deleted_at || 'N/A'}</td>
+                                        <td>{renderValue(loan.status)}</td>
+                                        <td>{renderValue(loan.payment_completed_at_date)}</td>
+                                        <td>{renderValue(loan.repayment_rule)}</td>
+                                        <td>{renderValue(loan.description)}</td>
+                                        <td>{renderValue(loan.penalty_id)}</td>
+                                        <td>{renderValue(new Date(loan.created_at).toLocaleString())}</td>
+                                        <td>{renderValue(new Date(loan.updated_at).toLocaleString())}</td>
+                                        <td>{renderValue(loan.deleted_at)}</td>
                                       </tr>
                                     </tbody>
                                   </table>
                                 </div>
                                 {/* Loan Transactions */}
                                 <div className="mt-2">
-                                  <h5 className="text-sm font-medium text-green-800 mb-1">Loan Transactions</h5>
-                                  {loan.loan_transactions.length === 0 ? (
-                                    <p className="text-sm text-green-600">No transactions found.</p>
-                                  ) : (
-                                    <div className="table-container">
-                                      <table className="loan-transaction">
-                                        <thead>
-                                          <tr>
-                                            <th>ID</th>
-                                            <th>Transaction Code</th>
-                                            <th>Loan ID</th>
-                                            <th>Order ID</th>
-                                            <th>Amount</th>
-                                            <th>Penalty</th>
-                                            <th>Type</th>
-                                            <th>Status</th>
-                                            <th>Paid Date</th>
-                                            <th>Due Date</th>
-                                            <th>Payment Method</th>
-                                            <th>Is Notified</th>
-                                            <th>Penalty ID</th>
-                                            <th>Request Payload</th>
-                                            <th>Transaction ID Banks</th>
-                                            <th>Response Payload</th>
-                                            <th>Bank Payment Logic</th>
-                                            <th>Bank Pay URL</th>
-                                            <th>Created At</th>
-                                            <th>Updated At</th>
-                                            <th>Deleted At</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {loan.loan_transactions.map((transaction) => (
-                                            <tr key={transaction.id}>
-                                              <td>{transaction.id}</td>
-                                              <td>{transaction.loan_transaction_code || 'N/A'}</td>
-                                              <td>{transaction.loan_id}</td>
-                                              <td>{transaction.order_id || 'N/A'}</td>
-                                              <td>{transaction.amount} ETB</td>
-                                              <td>{transaction.penalty} ETB</td>
-                                              <td>{transaction.type}</td>
-                                              <td>{transaction.status || 'N/A'}</td>
-                                              <td>
-                                                {transaction.paid_date
-                                                  ? new Date(transaction.paid_date).toLocaleString()
-                                                  : 'N/A'}
-                                              </td>
-                                              <td>
-                                                {transaction.due_date
-                                                  ? new Date(transaction.due_date).toLocaleString()
-                                                  : 'N/A'}
-                                              </td>
-                                              <td>{transaction.payment_method || 'N/A'}</td>
-                                              <td>{transaction.is_notified ? 'Yes' : 'No'}</td>
-                                              <td>{transaction.penalty_id || 'N/A'}</td>
-                                              <td>{transaction.request_payload || 'N/A'}</td>
-                                              <td>{transaction.transaction_id_banks || 'N/A'}</td>
-                                              <td>{transaction.response_payload || 'N/A'}</td>
-                                              <td>{transaction.bank_payment_logic_data || 'N/A'}</td>
-                                              <td>{transaction.bank_to_pay_url || 'N/A'}</td>
-                                              {/* <td>
-                                                {transaction.bank_to_pay_url ? (
-                                                  <a
-                                                    href={transaction.bank_to_pay_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-green-500 hover:underline"
+                                  <div className="flex items-center">
+                                    <h5 className="text-sm font-medium text-blue-900 mr-2">Loan Transactions</h5>
+                                    <button
+                                      onClick={() => toggleLoanTransactions(loan.id)}
+                                      className="px-2 py-1 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+                                    >
+                                      {expandedLoanTransactions[loan.id] ? '▲ Collapse' : '▼ Expand'}
+                                    </button>
+                                  </div>
+                                  <AnimatePresence>
+                                    {expandedLoanTransactions[loan.id] && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                      >
+                                        {loan.loan_transactions.length === 0 ? (
+                                          <p className="text-sm text-blue-600 mt-2">No transactions found.</p>
+                                        ) : (
+                                          <div className="table-container mt-2">
+                                            <table>
+                                              <thead>
+                                                <tr>
+                                                  <th>ID</th>
+                                                  <th>Transaction Code</th>
+                                                  <th>Loan ID</th>
+                                                  <th>Order ID</th>
+                                                  <th>Amount</th>
+                                                  <th>Penalty</th>
+                                                  <th>Type</th>
+                                                  <th>Status</th>
+                                                  <th>Paid Date</th>
+                                                  <th>Due Date</th>
+                                                  <th>Payment Method</th>
+                                                  <th>Is Notified</th>
+                                                  <th>Penalty ID</th>
+                                                  <th>Request Payload</th>
+                                                  <th>Transaction ID Banks</th>
+                                                  <th>Response Payload</th>
+                                                  <th>Bank Payment Logic</th>
+                                                  <th>Bank Pay URL</th>
+                                                  <th>Created At</th>
+                                                  <th>Updated At</th>
+                                                  <th>Deleted At</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {loan.loan_transactions.map((transaction) => (
+                                                  <tr
+                                                    key={transaction.id}
+                                                    className={getTransactionClass(transaction)}
                                                   >
-                                                    Pay
-                                                  </a>
-                                                ) : (
-                                                  'N/A'
-                                                )}
-                                              </td> */}
-                                              <td>{new Date(transaction.created_at).toLocaleString()}</td>
-                                              <td>{new Date(transaction.updated_at).toLocaleString()}</td>
-                                              <td>{transaction.deleted_at || 'N/A'}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
+                                                    <td>{renderValue(transaction.id)}</td>
+                                                    <td>{renderValue(transaction.loan_transaction_code)}</td>
+                                                    <td>{renderValue(transaction.loan_id)}</td>
+                                                    <td>{renderValue(transaction.order_id)}</td>
+                                                    <td>{renderValue(transaction.amount)} ETB</td>
+                                                    <td>{renderValue(transaction.penalty)} ETB</td>
+                                                    <td>{renderValue(transaction.type)}</td>
+                                                    <td>{renderValue(transaction.status)}</td>
+                                                    <td>
+                                                      {renderValue(
+                                                        transaction.paid_date
+                                                          ? new Date(transaction.paid_date).toLocaleString()
+                                                          : 'N/A'
+                                                      )}
+                                                    </td>
+                                                    <td>
+                                                      {renderValue(
+                                                        transaction.due_date
+                                                          ? new Date(transaction.due_date).toLocaleString()
+                                                          : 'N/A'
+                                                      )}
+                                                    </td>
+                                                    <td>{renderValue(transaction.payment_method)}</td>
+                                                    <td>{transaction.is_notified ? 'Yes' : 'No'}</td>
+                                                    <td>{renderValue(transaction.penalty_id)}</td>
+                                                    <td>{renderValue(transaction.request_payload)}</td>
+                                                    <td>{renderValue(transaction.transaction_id_banks)}</td>
+                                                    <td>{renderValue(transaction.response_payload)}</td>
+                                                    <td>{renderValue(transaction.bank_payment_logic_data)}</td>
+                                                    <td>{renderValue(transaction.bank_to_pay_url)}</td>
+                                                    <td>{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
+                                                    <td>{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
+                                                    <td>{renderValue(transaction.deleted_at)}</td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        )}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                 </div>
                               </div>
                             ))
