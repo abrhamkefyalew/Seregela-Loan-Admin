@@ -73,7 +73,7 @@ interface Loan {
   is_all_amount_spent: boolean | null;
   status: string;
   payment_completed_at_date: string | null;
-  repayment_rule: string | { term_months: string } | null; // Updated to handle both string and object
+  repayment_rule: string | { term_months: string } | null;
   description: string | null;
   penalty_id: number | null;
   created_at: string;
@@ -141,6 +141,21 @@ export default function OverdueLoans() {
     '/overdue_loans': 'overdue_loans',
   };
   const currentRoute = routeMap[pathname] || '';
+
+  // Utility function to determine transaction row class
+  const getTransactionClass = (transaction: LoanTransaction) => {
+    console.log(`Transaction ID: ${transaction.id}, Type: ${transaction.type}, Status: ${transaction.status}, Paid Date: ${transaction.paid_date}`);
+    if (transaction.type === 'LOAN_REPAYMENT') {
+      if (transaction.status === 'NOT_PAID' && transaction.paid_date === null) {
+        console.log(`Transaction ${transaction.id} is UNPAID (Red)`);
+        return 'loan-transaction-unpaid';
+      }
+      console.log(`Transaction ${transaction.id} is PAID (Green)`);
+      return 'loan-transaction-paid';
+    }
+    console.log(`Transaction ${transaction.id} is NORMAL (Default)`);
+    return 'loan-transaction-normal';
+  };
 
   // Updated renderValue to handle objects
   const renderValue = (value: any) => {
@@ -398,6 +413,27 @@ export default function OverdueLoans() {
         }
         .table-container td {
           color: #1e40af;
+        }
+        .loan-transaction-unpaid {
+          background-color: #fee2e2;
+          color: #b91c1c !important;
+        }
+        .loan-transaction-unpaid td {
+          color: #b91c1c !important;
+        }
+        .loan-transaction-paid {
+          background-color: #dcfce7;
+          color: #15803d !important;
+        }
+        .loan-transaction-paid td {
+          color: #15803d !important;
+        }
+        .loan-transaction-normal {
+          background-color: #eff6ff;
+          color: #1e40af !important;
+        }
+        .loan-transaction-normal td {
+          color: #1e40af !important;
         }
       `}</style>
 
@@ -787,7 +823,7 @@ export default function OverdueLoans() {
                                             </thead>
                                             <tbody>
                                               {loan.loan_transactions.map((transaction) => (
-                                                <tr key={transaction.id}>
+                                                <tr key={transaction.id} className={getTransactionClass(transaction)}>
                                                   <td className="px-3 py-2 border-b border-blue-200">
                                                     {transaction.type === 'LOAN_REPAYMENT' && transaction.status === 'NOT_PAID' && !transaction.paid_date ? (
                                                       <div className="flex space-x-2">
@@ -807,6 +843,24 @@ export default function OverdueLoans() {
                                                             </>
                                                           ) : (
                                                             'Send SMS'
+                                                          )}
+                                                        </button>
+                                                        <button
+                                                          onClick={() => handlePay(transaction.id)}
+                                                          disabled={paying[transaction.id]}
+                                                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                                            paying[transaction.id]
+                                                              ? 'bg-blue-900 text-white cursor-not-allowed'
+                                                              : 'bg-green-600 text-white hover:bg-green-700'
+                                                          }`}
+                                                        >
+                                                          {paying[transaction.id] ? (
+                                                            <>
+                                                              <span className="spinner mr-2" />
+                                                              Paying...
+                                                            </>
+                                                          ) : (
+                                                            'Pay'
                                                           )}
                                                         </button>
                                                       </div>

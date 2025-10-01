@@ -105,7 +105,7 @@ interface Loan {
   is_all_amount_spent: boolean | null;
   status: string;
   payment_completed_at_date: string | null;
-  repayment_rule: string | { term_months: string } | null; // Updated to handle both string and object
+  repayment_rule: string | { term_months: string } | null;
   description: string | null;
   penalty_id: number | null;
   created_at: string;
@@ -395,6 +395,21 @@ export default function Loans() {
     return value;
   };
 
+  // Utility function to determine transaction row class
+  const getTransactionClass = (transaction: LoanTransaction) => {
+    console.log(`Transaction ID: ${transaction.id}, Type: ${transaction.type}, Status: ${transaction.status}, Paid Date: ${transaction.paid_date}`);
+    if (transaction.type === 'LOAN_REPAYMENT') {
+      if (transaction.status === 'NOT_PAID' && transaction.paid_date === null) {
+        console.log(`Transaction ${transaction.id} is UNPAID (Red)`);
+        return 'loan-transaction-unpaid';
+      }
+      console.log(`Transaction ${transaction.id} is PAID (Green)`);
+      return 'loan-transaction-paid';
+    }
+    console.log(`Transaction ${transaction.id} is NORMAL (Default)`);
+    return 'loan-transaction-normal';
+  };
+
   return (
     <main className="min-h-screen bg-blue-50 text-gray-900 p-4 sm:p-6">
       {/* Spinner CSS */}
@@ -435,6 +450,27 @@ export default function Loans() {
         }
         .table-container td {
           color: #1e40af;
+        }
+        .loan-transaction-unpaid {
+          background-color: #fee2e2;
+          color: #b91c1c !important;
+        }
+        .loan-transaction-unpaid td {
+          color: #b91c1c !important;
+        }
+        .loan-transaction-paid {
+          background-color: #dcfce7;
+          color: #15803d !important;
+        }
+        .loan-transaction-paid td {
+          color: #15803d !important;
+        }
+        .loan-transaction-normal {
+          background-color: #eff6ff;
+          color: #1e40af !important;
+        }
+        .loan-transaction-normal td {
+          color: #1e40af !important;
         }
       `}</style>
 
@@ -1100,7 +1136,7 @@ export default function Loans() {
                               </thead>
                               <tbody>
                                 {loan.loan_transactions.map((transaction) => (
-                                  <tr key={transaction.id}>
+                                  <tr key={transaction.id} className={getTransactionClass(transaction)}>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.id)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
