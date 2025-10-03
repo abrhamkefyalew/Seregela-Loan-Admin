@@ -124,6 +124,7 @@ export default function Loans() {
   const [loading, setLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: Set<string> }>({});
   const [approving, setApproving] = useState<{ [key: number]: boolean }>({});
+  const [deleting, setDeleting] = useState<{ [key: number]: boolean }>({});
   const [approveForm, setApproveForm] = useState<{ [key: number]: { loan_amount: string; term_months: string; description: string; loan_cap: string } }>({});
   const [paginateCount, setPaginateCount] = useState(10);
   const [userIdSearch, setUserIdSearch] = useState('');
@@ -202,6 +203,48 @@ export default function Loans() {
       setLoading(false);
     }
   }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
+
+  const handleDelete = async (loanId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token found, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    setDeleting(prev => ({ ...prev, [loanId]: true }));
+
+    try {
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/loans/${loanId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.status === 204) {
+        alert('Loan deleted successfully');
+        fetchData(currentPage);
+        return;
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Unauthorized access - redirecting to login:', { status: res.status });
+        router.push('/login');
+        return;
+      }
+
+      const json = await res.json();
+      console.warn('Loan deletion failed:', res.status, json);
+      alert(json.message || 'Failed to delete loan');
+    } catch (e) {
+      console.warn('Error deleting loan:', e);
+      alert('Error deleting loan');
+    } finally {
+      setDeleting(prev => ({ ...prev, [loanId]: false }));
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -634,7 +677,7 @@ export default function Loans() {
             return (
               <div key={loan.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
                 <div className="w-full min-w-0">
-                  {/* Approve Button and Form */}
+                  {/* Approve and Delete Buttons */}
                   <div className="mb-4 flex justify-end items-center space-x-2">
                     <button
                       onClick={() => handleApproveToggle(loan.id)}
@@ -656,6 +699,24 @@ export default function Loans() {
                         'Approved'
                       ) : (
                         'Approve Loan'
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(loan.id)}
+                      disabled={deleting[loan.id]}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                        deleting[loan.id]
+                          ? 'bg-red-900 text-white cursor-not-allowed'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      {deleting[loan.id] ? (
+                        <>
+                          <span className="spinner mr-2" />
+                          Deleting...
+                        </>
+                      ) : (
+                        'Delete Loan'
                       )}
                     </button>
                   </div>
