@@ -354,7 +354,7 @@ export default function Loans() {
       return;
     }
 
-    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) <= 0) {
+    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) < 0) {
       alert('Loan cap must be a positive number');
       return;
     }
