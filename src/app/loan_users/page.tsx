@@ -463,10 +463,10 @@ export default function LoanUsers() {
                             <div className="font-semibold text-blue-700">Loan User Approved</div>
                             <div>{loan_user.is_approved ? 'Yes' : 'No'}</div>
                           </div>
-                          <div>
+                          {/* <div>
                             <div className="font-semibold text-blue-700">Approved Date</div>
                             <div>{renderValue(loan_user.approved_date)}</div>
-                          </div>
+                          </div> */}
                           <div>
                             <div className="font-semibold text-blue-700">Created At</div>
                             <div>{renderValue(new Date(loan_user.created_at).toLocaleString())}</div>
