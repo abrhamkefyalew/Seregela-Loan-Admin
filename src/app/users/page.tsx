@@ -732,7 +732,7 @@ export default function Users() {
                                     <th>Loan Balance</th>
                                     <th>Loan Cap</th>
                                     <th>Is Approved</th>
-                                    <th>Approved Date</th>
+                                    {/* <th>Approved Date</th> */}
                                     <th>Created At</th>
                                     <th>Updated At</th>
                                     <th>Deleted At</th>
@@ -745,7 +745,7 @@ export default function Users() {
                                     <td>{renderValue(user.loan_user.loan_balance)} ETB</td>
                                     <td>{renderValue(user.loan_user.loan_cap)} ETB</td>
                                     <td>{user.loan_user.is_approved ? 'Yes' : 'No'}</td>
-                                    <td>{renderValue(user.loan_user.approved_date)}</td>
+                                    {/* <td>{renderValue(user.loan_user.approved_date)}</td> */}
                                     <td>{renderValue(new Date(user.loan_user.created_at).toLocaleString())}</td>
                                     <td>{renderValue(new Date(user.loan_user.updated_at).toLocaleString())}</td>
                                     <td>{renderValue(user.loan_user.deleted_at)}</td>
