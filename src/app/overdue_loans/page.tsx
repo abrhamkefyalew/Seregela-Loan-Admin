@@ -231,7 +231,7 @@ export default function OverdueLoans() {
       const formData = new FormData();
       formData.append('loan_transaction_id', transactionId.toString());
 
-      const res = await fetch('https://api.seregelagebeya.com/api/v1/sms/send-sms', {
+      const res = await fetch('https://api.seregelagebeya.com/api/v1/sms/send-sms-for-overdue-loans', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
