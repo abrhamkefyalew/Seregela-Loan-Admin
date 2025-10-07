@@ -437,6 +437,34 @@ export default function LoanUsers() {
             return (
               <div key={loan_user.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
                 <div className="w-full min-w-0">
+                  {/* User Summary Section (Always Visible, Horizontal) */}
+                  
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold text-blue-900 mb-2">User Summary</h2>
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm border border-blue-200 rounded-lg p-4">
+                          <div>
+                            <div className="font-semibold text-blue-700">First Name</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.first_name)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Last Name</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.last_name)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Email</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.email)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Phone Number</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.phone_number)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Loan User Details (Always Visible, at the Top) */}
                   <div className="mb-6 bg-blue-100 p-4 rounded-lg border border-blue-300">
                     <h2 className="text-lg font-semibold text-blue-900 mb-2">Loan User Details</h2>
