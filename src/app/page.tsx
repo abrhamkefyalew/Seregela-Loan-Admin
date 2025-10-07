@@ -339,7 +339,7 @@ export default function Loans() {
     }
 
     const formData = approveForm[loanId];
-    if (!formData || !formData.loan_amount || !formData.term_months || !formData.description || !formData.loan_cap) {
+    if (!formData || !formData.loan_amount || !formData.term_months) {
       alert('Please fill all approval fields');
       return;
     }
