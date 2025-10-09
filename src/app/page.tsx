@@ -339,7 +339,7 @@ export default function Loans() {
     }
 
     const formData = approveForm[loanId];
-    if (!formData || !formData.loan_amount || !formData.term_months) {
+    if (!formData || !formData.loan_amount || !formData.term_months || !formData.description || !formData.loan_cap) {
       alert('Please fill all approval fields');
       return;
     }
@@ -354,7 +354,7 @@ export default function Loans() {
       return;
     }
 
-    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) < 0) {
+    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) <= 0) {
       alert('Loan cap must be a positive number');
       return;
     }
@@ -702,7 +702,11 @@ export default function Loans() {
                       )}
                     </button>
                     <button
-                      onClick={() => handleDelete(loan.id)}
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete loan with ID ${loan.id}?`)) {
+                          handleDelete(loan.id);
+                        }
+                      }}
                       disabled={deleting[loan.id]}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
                         deleting[loan.id]
