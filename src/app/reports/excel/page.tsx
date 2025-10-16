@@ -25,7 +25,7 @@ export default function ReportsExcel() {
 //   const [purchasePendingPickup, setPurchasePendingPickup] = useState(false);
   
   // Report Type Selection
-  const [reportType, setReportType] = useState('users_individual_multi_sheet');
+  const [reportType, setReportType] = useState('');
   const [downloading, setDownloading] = useState(false);
   
   // Route map for NavigationBar
@@ -70,8 +70,8 @@ export default function ReportsExcel() {
       if (loanUserId) url += `loan_user_id=${encodeURIComponent(loanUserId)}&`;
       if (loanTransactionId) url += `loan_transaction_id=${encodeURIComponent(loanTransactionId)}&`;
 
-      // Report Type (with empty value as per your backend)
-      url += `${reportType}=&`;
+      // Report Type (with empty value as per your backend) FIXED - ONLY IF SELECTED
+      if (reportType) url += `${reportType}=&`;
 
       // Transaction Filters (PRESENT without value - as checkboxes)
       if (isOverdue) url += `is_overdue=&`;
@@ -118,15 +118,30 @@ export default function ReportsExcel() {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
 
-        alert('✅ Excel report downloaded successfully!');
+        alert('Excel report downloaded successfully!');
       } else {
         const errorText = await response.text();
-        console.error('❌ Download failed:', response.status, errorText);
-        alert(`❌ Failed to download report: ${response.status} - ${errorText}`);
+        console.warn('Download failed:', response.status, errorText);
+        
+        // FIXED: CLEAN MESSAGE + 401 REDIRECT
+        let errorMessage = 'Failed to download report';
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          alert('Session expired. Redirecting to login...');
+          router.push('/login');
+          return;
+        }
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch {
+          errorMessage = errorText.trim();
+        }
+        alert(errorMessage);
       }
     } catch (error) {
-      console.error('❌ Download error:', error);
-      alert('❌ Error downloading report. Please try again.');
+      console.warn('Download error:', error);
+      alert('Error downloading report. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -144,6 +159,7 @@ export default function ReportsExcel() {
     setTake(false);
     setRepayment(false);
     setPurchase(false);
+    setReportType(''); // Clear report type too
     // setPurchaseUnpaid(false);
     // setPurchasePendingPickup(false);
   };
@@ -180,28 +196,33 @@ export default function ReportsExcel() {
       <div className="max-w-6xl mx-auto">
         {/* Report Type Selection */}
         <div className="mb-6 bg-white p-6 rounded-lg shadow border border-blue-100">
-          <h2 className="text-lg font-semibold text-blue-900 mb-4">📋 Select Report Type</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { value: 'users_individual_multi_sheet', label: '👥 Multi-Sheet (Users)', desc: 'Individual sheets per user' },
-              { value: 'users_based_single_sheet', label: '📄 Single Sheet (Users)', desc: 'All users in one sheet' },
-              { value: 'transactions_based_single_sheet', label: '💳 Single Sheet (Transactions)', desc: 'All transactions in one sheet' },
-            ].map(({ value, label, desc }) => (
-              <label key={value} className="flex items-center p-3 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50">
-                <input
-                  type="radio"
-                  value={value}
-                  checked={reportType === value}
-                  onChange={(e) => setReportType(e.target.value)}
-                  className="mr-3 text-blue-600"
-                />
-                <div>
-                  <div className="font-medium text-blue-900">{label}</div>
-                  <div className="text-sm text-blue-600">{desc}</div>
-                </div>
-              </label>
-            ))}
-          </div>
+            <h2 className="text-lg font-semibold text-blue-900 mb-4">📋 Select Report Type</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                { value: 'users_individual_multi_sheet', label: '👥 Multi-Sheet (Users)', desc: 'Individual sheets per user' },
+                { value: 'users_based_single_sheet', label: '📄 Single Sheet (Users)', desc: 'All users in one sheet' },
+                { value: 'transactions_based_single_sheet', label: '💳 Single Sheet (Transactions)', desc: 'All transactions in one sheet' },
+                ].map(({ value, label, desc }) => (
+                <label key={value} className="flex items-center p-3 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50">
+                    <input
+                    type="checkbox"
+                    checked={reportType === value}
+                    onChange={(e) => {
+                        if (e.target.checked) {
+                        setReportType(value);
+                        } else {
+                        setReportType('');
+                        }
+                    }}
+                    className="mr-3 text-blue-600"
+                    />
+                    <div>
+                    <div className="font-medium text-blue-900">{label}</div>
+                    <div className="text-sm text-blue-600">{desc}</div>
+                    </div>
+                </label>
+                ))}
+            </div>
         </div>
 
         {/* Filters Form */}
@@ -325,7 +346,7 @@ export default function ReportsExcel() {
           <ul className="text-sm text-blue-700 space-y-1">
             <li>• Fill specific IDs (User/Loan/etc.) OR leave blank for all records</li>
             <li>• Check transaction filters as needed</li>
-            <li>• Select report type above</li>
+            <li>• Select report type OR leave blank for default</li>
             <li>• Click "Download Excel" - file will auto-download</li>
             <li>• Multi-sheet: One sheet per user | Single-sheet: All in one tab</li>
           </ul>
