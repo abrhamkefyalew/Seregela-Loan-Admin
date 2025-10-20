@@ -125,7 +125,9 @@ export default function Loans() {
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: Set<string> }>({});
   const [approving, setApproving] = useState<{ [key: number]: boolean }>({});
   const [deleting, setDeleting] = useState<{ [key: number]: boolean }>({});
+  const [updatingDueDate, setUpdatingDueDate] = useState<{ [key: string]: boolean }>({}); // ✅ NEW: Track due date updates
   const [approveForm, setApproveForm] = useState<{ [key: number]: { loan_amount: string; term_months: string; description: string; loan_cap: string } }>({});
+  const [dueDateForm, setDueDateForm] = useState<{ [key: string]: string }>({}); // ✅ NEW: Store due date inputs
   const [paginateCount, setPaginateCount] = useState(10);
   const [userIdSearch, setUserIdSearch] = useState('');
   const [loanAmountSearch, setLoanAmountSearch] = useState('');
@@ -203,6 +205,64 @@ export default function Loans() {
       setLoading(false);
     }
   }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
+
+  // ✅ NEW: Update Due Date Function
+  const handleUpdateDueDate = async (transactionId: number, loanId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    const newDueDate = dueDateForm[`${loanId}-${transactionId}`];
+    if (!newDueDate) {
+      alert('Please enter a due date');
+      return;
+    }
+
+    setUpdatingDueDate(prev => ({ ...prev, [`${loanId}-${transactionId}`]: true }));
+
+    try {
+      const form = new FormData();
+      form.append('_method', 'PUT');
+      form.append('due_date', newDueDate);
+
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/loan-transactions/${transactionId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: form,
+      });
+
+      if (res.ok) {
+        alert('✅ Due date updated successfully!');
+        // Refresh data
+        fetchData(currentPage);
+        // Clear form
+        setDueDateForm(prev => {
+          const { [`${loanId}-${transactionId}`]: _, ...rest } = prev;
+          return rest;
+        });
+      } else {
+        const errorText = await res.text();
+        let errorMessage = 'Failed to update due date';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch {
+          errorMessage = errorText.trim();
+        }
+        alert(errorMessage);
+      }
+    } catch (e) {
+      console.warn('Error updating due date:', e);
+      alert('Error updating due date');
+    } finally {
+      setUpdatingDueDate(prev => ({ ...prev, [`${loanId}-${transactionId}`]: false }));
+    }
+  };
 
   const handleDelete = async (loanId: number) => {
     const token = localStorage.getItem('authToken');
@@ -328,6 +388,14 @@ export default function Loans() {
         ...prev[loanId] || { loan_amount: '', term_months: '', description: '', loan_cap: '' },
         [field]: value,
       },
+    }));
+  };
+
+  // ✅ NEW: Handle Due Date Input Change
+  const handleDueDateChange = (transactionId: number, loanId: number, value: string) => {
+    setDueDateForm(prev => ({
+      ...prev,
+      [`${loanId}-${transactionId}`]: value,
     }));
   };
 
@@ -1197,29 +1265,72 @@ export default function Loans() {
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Created At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Updated At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Deleted At</th>
+                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {loan.loan_transactions.map((transaction) => (
-                                  <tr key={transaction.id} className={getTransactionClass(transaction)}>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.order_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)} ETB</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)} ETB</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.type)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.status)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.paid_date ? new Date(transaction.paid_date).toLocaleString() : 'N/A')}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.due_date ? new Date(transaction.due_date).toLocaleString() : 'N/A')}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>
-                                  </tr>
-                                ))}
+                                {loan.loan_transactions.map((transaction) => {
+                                  const key = `${loan.id}-${transaction.id}`;
+                                  return (
+                                    <tr key={transaction.id} className={getTransactionClass(transaction)}>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.id)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.order_id)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)} ETB</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)} ETB</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.type)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.status)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.paid_date ? new Date(transaction.paid_date).toLocaleString() : 'N/A')}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">
+                                        {/* ✅ EDITABLE DUE DATE */}
+                                        <div className="flex items-center space-x-2">
+                                          <input
+                                            type="date"
+                                            value={dueDateForm[key] || transaction.due_date || ''}
+                                            onChange={(e) => handleDueDateChange(transaction.id, loan.id, e.target.value)}
+                                            className="bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          />
+                                          <button
+                                            onClick={() => handleUpdateDueDate(transaction.id, loan.id)}
+                                            disabled={updatingDueDate[key] || !dueDateForm[key]}
+                                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                              updatingDueDate[key] || !dueDateForm[key]
+                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                            }`}
+                                          >
+                                            {updatingDueDate[key] ? (
+                                              <span className="spinner w-3 h-3" />
+                                            ) : (
+                                              'Save'
+                                            )}
+                                          </button>
+                                        </div>
+                                        {transaction.due_date && !dueDateForm[key] && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            {new Date(transaction.due_date).toLocaleString()}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>
+                                      <td className="px-3 py-2 border-b border-blue-200">
+                                        <button
+                                          onClick={() => handleUpdateDueDate(transaction.id, loan.id)}
+                                          disabled={updatingDueDate[key] || !dueDateForm[key]}
+                                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                                        >
+                                          Update
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
