@@ -554,7 +554,18 @@ export default function Loans() {
     const isEditing = editingTransaction === transaction.id;
     const isUpdating = updatingDueDate[transaction.id];
 
-    const displayDate = transaction.due_date ? transaction.due_date.split('T')[0] : 'N/A';
+    // const displayDate = transaction.due_date ? transaction.due_date.split('T')[0] : 'N/A';   // date format for due_date = YYYY-MM-DD
+    //
+    //
+    const displayDate = transaction.due_date                                                    // date format for due_date = MM/DD/YYYY     
+    ? new Date(transaction.due_date).toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+      })
+    : 'N/A';
+
+
 
     if (isEditing) {
       return (
