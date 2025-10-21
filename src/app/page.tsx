@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import NavigationBar from './components/NavigationBar';
@@ -125,9 +125,11 @@ export default function Loans() {
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: Set<string> }>({});
   const [approving, setApproving] = useState<{ [key: number]: boolean }>({});
   const [deleting, setDeleting] = useState<{ [key: number]: boolean }>({});
-  const [updatingDueDate, setUpdatingDueDate] = useState<{ [key: string]: boolean }>({}); // ✅ NEW: Track due date updates
+  const [updatingDueDate, setUpdatingDueDate] = useState<{ [key: number]: boolean }>({});
   const [approveForm, setApproveForm] = useState<{ [key: number]: { loan_amount: string; term_months: string; description: string; loan_cap: string } }>({});
-  const [dueDateForm, setDueDateForm] = useState<{ [key: string]: string }>({}); // ✅ NEW: Store due date inputs
+  const [dueDateForm, setDueDateForm] = useState<{ [key: number]: string }>({});
+  const [editingTransaction, setEditingTransaction] = useState<number | null>(null);
+  const transactionsRef = useRef<{ [key: number]: HTMLTableRowElement }>({});
   const [paginateCount, setPaginateCount] = useState(10);
   const [userIdSearch, setUserIdSearch] = useState('');
   const [loanAmountSearch, setLoanAmountSearch] = useState('');
@@ -143,7 +145,6 @@ export default function Loans() {
     users: false,
   });
 
-  // Map routes to nav items
   const routeMap: { [key: string]: string } = {
     '/': 'loans',
     '/loan_users': 'loan_users',
@@ -206,26 +207,30 @@ export default function Loans() {
     }
   }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
 
-  // ✅ NEW: Update Due Date Function
-  const handleUpdateDueDate = async (transactionId: number, loanId: number) => {
+  const handleUpdateDueDate = async (loanId: number, transactionId: number) => {
     const token = localStorage.getItem('authToken');
     if (!token) {
       router.push('/login');
       return;
     }
 
-    const newDueDate = dueDateForm[`${loanId}-${transactionId}`];
-    if (!newDueDate) {
+    const dueDateValue = dueDateForm[transactionId];
+    if (!dueDateValue) {
       alert('Please enter a due date');
       return;
     }
 
-    setUpdatingDueDate(prev => ({ ...prev, [`${loanId}-${transactionId}`]: true }));
+    const confirmed = window.confirm(`Are you sure you want to edit due date for Transaction ID: ${transactionId}?\n\nNew Due Date: ${dueDateValue}`);
+    if (!confirmed) {
+      return;
+    }
+
+    setUpdatingDueDate(prev => ({ ...prev, [transactionId]: true }));
 
     try {
       const form = new FormData();
       form.append('_method', 'PUT');
-      form.append('due_date', newDueDate);
+      form.append('due_date', dueDateValue);
 
       const res = await fetch(`https://api.seregelagebeya.com/api/v1/loan-transactions/${transactionId}`, {
         method: 'POST',
@@ -236,16 +241,7 @@ export default function Loans() {
         body: form,
       });
 
-      if (res.ok) {
-        alert('✅ Due date updated successfully!');
-        // Refresh data
-        fetchData(currentPage);
-        // Clear form
-        setDueDateForm(prev => {
-          const { [`${loanId}-${transactionId}`]: _, ...rest } = prev;
-          return rest;
-        });
-      } else {
+      if (!res.ok) {
         const errorText = await res.text();
         let errorMessage = 'Failed to update due date';
         try {
@@ -255,12 +251,45 @@ export default function Loans() {
           errorMessage = errorText.trim();
         }
         alert(errorMessage);
+        return;
       }
+
+      const json = await res.json();
+      const updatedTransaction = json.data;
+
+      setLoans(prev =>
+        prev.map(loan =>
+          loan.id === loanId
+            ? {
+                ...loan,
+                loan_transactions: loan.loan_transactions.map(t =>
+                  t.id === transactionId ? { ...t, ...updatedTransaction } : t
+                ),
+              }
+            : loan
+        )
+      );
+
+      setDueDateForm(prev => {
+        const { [transactionId]: _, ...rest } = prev;
+        return rest;
+      });
+      setEditingTransaction(null);
+
+      alert('Due date updated successfully!');
+
+      setTimeout(() => {
+        transactionsRef.current[transactionId]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
+
     } catch (e) {
       console.warn('Error updating due date:', e);
       alert('Error updating due date');
     } finally {
-      setUpdatingDueDate(prev => ({ ...prev, [`${loanId}-${transactionId}`]: false }));
+      setUpdatingDueDate(prev => ({ ...prev, [transactionId]: false }));
     }
   };
 
@@ -381,6 +410,14 @@ export default function Loans() {
     toggleSection(loanId, 'approve');
   };
 
+  const handleDueDateEditToggle = (transactionId: number, currentDueDate: string | null, loanId: number) => {
+    setEditingTransaction(transactionId);
+    setDueDateForm(prev => ({
+      ...prev,
+      [transactionId]: currentDueDate ? currentDueDate.split('T')[0] : ''
+    }));
+  };
+
   const handleApproveFormChange = (loanId: number, field: string, value: string) => {
     setApproveForm(prev => ({
       ...prev,
@@ -391,11 +428,10 @@ export default function Loans() {
     }));
   };
 
-  // ✅ NEW: Handle Due Date Input Change
-  const handleDueDateChange = (transactionId: number, loanId: number, value: string) => {
+  const handleDueDateFormChange = (transactionId: number, value: string) => {
     setDueDateForm(prev => ({
       ...prev,
-      [`${loanId}-${transactionId}`]: value,
+      [transactionId]: value
     }));
   };
 
@@ -456,7 +492,6 @@ export default function Loans() {
       const json = await res.json();
       const updatedLoan = json.data;
 
-      // Update the loan in the state
       setLoans(prev =>
         prev.map(loan =>
           loan.id === loanId
@@ -475,7 +510,6 @@ export default function Loans() {
         )
       );
 
-      // Clear form and collapse section
       setApproveForm(prev => {
         const { [loanId]: _, ...rest } = prev;
         return rest;
@@ -506,24 +540,78 @@ export default function Loans() {
     return value;
   };
 
-  // Utility function to determine transaction row class
   const getTransactionClass = (transaction: LoanTransaction) => {
-    console.log(`Transaction ID: ${transaction.id}, Type: ${transaction.type}, Status: ${transaction.status}, Paid Date: ${transaction.paid_date}`);
     if (transaction.type === 'LOAN_REPAYMENT') {
       if (transaction.status === 'NOT_PAID' && transaction.paid_date === null) {
-        console.log(`Transaction ${transaction.id} is UNPAID (Red)`);
         return 'loan-transaction-unpaid';
       }
-      console.log(`Transaction ${transaction.id} is PAID (Green)`);
       return 'loan-transaction-paid';
     }
-    console.log(`Transaction ${transaction.id} is NORMAL (Default)`);
     return 'loan-transaction-normal';
+  };
+
+  const renderDueDateCell = (loanId: number, transaction: LoanTransaction) => {
+    const isEditing = editingTransaction === transaction.id;
+    const isUpdating = updatingDueDate[transaction.id];
+
+    const displayDate = transaction.due_date ? transaction.due_date.split('T')[0] : 'N/A';
+
+    if (isEditing) {
+      return (
+        <td className="px-3 py-2 border-b border-blue-200">
+          <div className="flex items-center space-x-2">
+            <input
+              type="date"
+              value={dueDateForm[transaction.id] || ''}
+              onChange={(e) => handleDueDateFormChange(transaction.id, e.target.value)}
+              className="bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={() => handleUpdateDueDate(loanId, transaction.id)}
+              disabled={isUpdating || !dueDateForm[transaction.id]}
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                isUpdating
+                  ? 'bg-blue-900 text-white cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {isUpdating ? <span className="spinner w-3 h-3" /> : '✓'}
+            </button>
+            <button
+              onClick={() => {
+                setEditingTransaction(null);
+                setDueDateForm(prev => {
+                  const { [transaction.id]: _, ...rest } = prev;
+                  return rest;
+                });
+              }}
+              className="px-2 py-1 rounded text-xs font-medium bg-red-200 hover:bg-red-300 text-red-700"
+            >
+              ✕
+            </button>
+          </div>
+        </td>
+      );
+    }
+
+    return (
+      <td className="px-3 py-2 border-b border-blue-200">
+        <div className="flex items-center space-x-2">
+          <span>{displayDate}</span>
+          <button
+            onClick={() => handleDueDateEditToggle(transaction.id, transaction.due_date, loanId)}
+            className="px-2 py-1 rounded text-xs font-medium bg-blue-200 hover:bg-blue-300 text-blue-700"
+            title="Edit Due Date"
+          >
+            ✏️
+          </button>
+        </div>
+      </td>
+    );
   };
 
   return (
     <main className="min-h-screen bg-blue-50 text-gray-900 p-4 sm:p-6">
-      {/* Spinner CSS */}
       <style jsx>{`
         .spinner {
           display: inline-block;
@@ -534,10 +622,12 @@ export default function Loans() {
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
+        .spinner.w-3.h-3 {
+          width: 0.75rem;
+          height: 0.75rem;
+        }
         @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
+          to { transform: rotate(360deg); }
         }
         .table-container {
           overflow-x: auto;
@@ -585,7 +675,6 @@ export default function Loans() {
         }
       `}</style>
 
-      {/* Navigation Bar */}
       <NavigationBar
         navLoading={navLoading}
         setNavLoading={setNavLoading}
@@ -597,7 +686,6 @@ export default function Loans() {
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-900">Loans Dashboard</h1>
       </header>
 
-      {/* Refresh Button */}
       <div className="mb-4 flex justify-end">
         <button
           onClick={handleRefresh}
@@ -619,7 +707,6 @@ export default function Loans() {
         </button>
       </div>
 
-      {/* Search Form */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow border border-blue-100">
         <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
@@ -745,7 +832,6 @@ export default function Loans() {
             return (
               <div key={loan.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
                 <div className="w-full min-w-0">
-                  {/* Approve and Delete Buttons */}
                   <div className="mb-4 flex justify-end items-center space-x-2">
                     <button
                       onClick={() => handleApproveToggle(loan.id)}
@@ -793,7 +879,6 @@ export default function Loans() {
                     </button>
                   </div>
 
-                  {/* Approve Form (Collapsible) */}
                   <AnimatePresence>
                     {sections.has('approve') && !loan.is_approved && (
                       <motion.div
@@ -883,7 +968,6 @@ export default function Loans() {
                     )}
                   </AnimatePresence>
 
-                  {/* User Summary Section (Always Visible, Horizontal) */}
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold text-blue-900 mb-2">User Summary</h2>
                     <div className="overflow-x-auto">
@@ -910,7 +994,6 @@ export default function Loans() {
                     </div>
                   </div>
 
-                  {/* Loan Details Section (Always Visible) */}
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold text-blue-900 mb-2">Loan Details</h2>
                     <div className="overflow-x-auto">
@@ -981,7 +1064,6 @@ export default function Loans() {
                     </div>
                   </div>
 
-                  {/* Fayda Customers Section (Collapsible) */}
                   <div className="mb-4">
                     <div 
                       className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
@@ -1070,7 +1152,6 @@ export default function Loans() {
                     </AnimatePresence>
                   </div>
 
-                  {/* User Details Section (Collapsible) */}
                   <div className="mb-4">
                     <div 
                       className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
@@ -1229,7 +1310,6 @@ export default function Loans() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Loan Transactions Section (Collapsible) */}
                   <div>
                     <div 
                       className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
@@ -1265,72 +1345,33 @@ export default function Loans() {
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Created At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Updated At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Deleted At</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {loan.loan_transactions.map((transaction) => {
-                                  const key = `${loan.id}-${transaction.id}`;
-                                  return (
-                                    <tr key={transaction.id} className={getTransactionClass(transaction)}>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.id)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.order_id)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)} ETB</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)} ETB</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.type)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.status)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.paid_date ? new Date(transaction.paid_date).toLocaleString() : 'N/A')}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">
-                                        {/* ✅ EDITABLE DUE DATE */}
-                                        <div className="flex items-center space-x-2">
-                                          <input
-                                            type="date"
-                                            value={dueDateForm[key] || transaction.due_date || ''}
-                                            onChange={(e) => handleDueDateChange(transaction.id, loan.id, e.target.value)}
-                                            className="bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                          />
-                                          <button
-                                            onClick={() => handleUpdateDueDate(transaction.id, loan.id)}
-                                            disabled={updatingDueDate[key] || !dueDateForm[key]}
-                                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                                              updatingDueDate[key] || !dueDateForm[key]
-                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                                            }`}
-                                          >
-                                            {updatingDueDate[key] ? (
-                                              <span className="spinner w-3 h-3" />
-                                            ) : (
-                                              'Save'
-                                            )}
-                                          </button>
-                                        </div>
-                                        {transaction.due_date && !dueDateForm[key] && (
-                                          <div className="text-xs text-gray-500 mt-1">
-                                            {new Date(transaction.due_date).toLocaleString()}
-                                          </div>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>
-                                      <td className="px-3 py-2 border-b border-blue-200">
-                                        <button
-                                          onClick={() => handleUpdateDueDate(transaction.id, loan.id)}
-                                          disabled={updatingDueDate[key] || !dueDateForm[key]}
-                                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
-                                        >
-                                          Update
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
+                                {loan.loan_transactions.map((transaction) => (
+                                  <tr
+                                    key={transaction.id}
+                                    className={getTransactionClass(transaction)}
+                                    ref={el => { if (el) transactionsRef.current[transaction.id] = el }}
+                                  >
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.id)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.order_id)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)} ETB</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)} ETB</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.type)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.status)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.paid_date ? new Date(transaction.paid_date).toLocaleString() : 'N/A')}</td>
+                                    {renderDueDateCell(loan.id, transaction)}
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>
+                                  </tr>
+                                ))}
                               </tbody>
                             </table>
                           </div>
@@ -1343,7 +1384,6 @@ export default function Loans() {
             );
           })}
 
-          {/* Pagination */}
           {meta && (
             <div className="mt-8 flex justify-center items-center gap-2 flex-wrap">
               <button
