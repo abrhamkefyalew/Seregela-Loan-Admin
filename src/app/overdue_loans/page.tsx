@@ -248,7 +248,10 @@ export default function OverdueLoans() {
       }
 
       const json = await res.json();
-      if (json.message === 'SMS job dispatched successfully') {
+      // if (json.message === 'SMS job dispatched successfully') {
+      // if (json.message && json.message.startsWith('SMS job dispatched successfully')) {
+      // if (json.message && json.message.includes('SMS job dispatched successfully')) {
+      if (json.message && json.message.toLowerCase().includes('sms job dispatched successfully')) {
         alert('SMS sent successfully');
       } else {
         console.warn('Unexpected response:', json);
