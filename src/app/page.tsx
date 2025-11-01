@@ -1034,9 +1034,50 @@ export default function Loans() {
                             <div className="font-semibold text-blue-700">Is All Amount Spent</div>
                             <div className="text-1e40af">{loan.is_all_amount_spent ? 'Yes' : 'No'}</div>
                           </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Status</div>
-                            <div className="text-1e40af">{renderValue(loan.status)}</div>
+                          {/* <div>
+                            <div>
+                              <div className={`
+                                font-semibold
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED' ? 'text-red-600' :
+                                  loan.status === 'PAYMENT_COMPLETED' ? 'text-green-600' :
+                                  'text-blue-700'}
+                              `}>
+                                Status
+                              </div>
+                              <div className={`
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED' ? 'text-red-600' :
+                                  loan.status === 'PAYMENT_COMPLETED' ? 'text-green-600' :
+                                  'text-1e40af'}
+                              `}>
+                                {renderValue(loan.status)}
+                              </div>
+                            </div>
+                          </div> */}
+
+                          <div className="relative">
+                            <div
+                              className={`
+                                font-semibold
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED' ? 'text-red-700' :
+                                  loan.status === 'PAYMENT_COMPLETED' ? 'text-green-700' :
+                                  'text-blue-700'}
+                              `}
+                            >
+                              Status
+                            </div>
+                            <div
+                              className={`
+                                px-3 py-1.5 rounded-md font-medium text-sm inline-block min-w-[160px] text-center
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED'
+                                  ? 'bg-red-100 text-red-800 border border-red-300 shadow-sm'
+                                  : loan.status === 'PAYMENT_COMPLETED'
+                                  ? 'bg-green-100 text-green-800 border border-green-300 shadow-sm'
+                                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                }
+                              `}
+                            >
+                              {renderValue(loan.status)}
+                            </div>
                           </div>
                           <div>
                             <div className="font-semibold text-blue-700">Payment Completed At</div>
