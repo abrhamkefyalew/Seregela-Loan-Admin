@@ -48,6 +48,8 @@ export default function NavigationBar({ navLoading, setNavLoading, currentRoute,
               { key: 'users', label: 'Users', route: '/users' },
               { key: 'overdue_loans', label: 'Overdue Loans', route: '/overdue_loans' },
               { key: 'reports', label: 'Reports', route: '/reports/excel' }, // NEW REPORTS TAB
+              { key: 'paid_loan_transactions', label: 'Loan Transactions [Paid]', route: '/loanTransactions' },
+              { key: 'completed_loans', label: 'Loans [PAYMENT COMPLETED]', route: '/completedLoans' }, // NEW
             ].map(({ key, label, route }) => (
               <button
                 key={key}
