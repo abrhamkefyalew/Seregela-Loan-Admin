@@ -1006,7 +1006,25 @@ export default function Loans() {
                   </div>
 
                   <div className="mb-6">
-                    <h2 className="text-lg font-semibold text-blue-900 mb-2">Loan Details</h2>
+                    {/* === NEW: Status Badge next to "Loan Details" title === */}
+                    {/* === NEW: Status Badge + Title in Flex === */}
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="text-lg font-semibold text-blue-900">Loan Details</h2>
+
+                      <div
+                        className={`
+                          px-4 py-2 rounded-full font-bold text-sm tracking-wide shadow-md border
+                          ${loan.status === 'PAYMENT_NOT_COMPLETED'
+                            ? 'bg-red-100 text-red-800 border-red-400'
+                            : loan.status === 'PAYMENT_COMPLETED'
+                            ? 'bg-green-100 text-green-800 border-green-400'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }
+                        `}
+                      >
+                        {renderValue(loan.status)}
+                      </div>
+                    </div>
                     <div className="overflow-x-auto">
                       <div className="inline-block min-w-full align-middle">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm border border-blue-200 rounded-lg p-4">
