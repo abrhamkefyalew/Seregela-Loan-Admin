@@ -57,6 +57,36 @@ interface Loan {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  // ADD THIS:
+  user: {
+    id: number;
+    user_name: string | null;
+    first_name: string;
+    last_name: string;
+    email: string | null;
+    phone_number: string;
+    is_verified: number;
+    email_verified_at: string | null;
+    firebase_token: string | null;
+    firebase_id: string | null;
+    cbe_birr_plus_token: string | null;
+    image: string | null;
+    cover_photo: string | null;
+    provider_id: number | null;
+    provider: string | null;
+    corporate_id: number | null;
+    wallet_balance: number;
+    bypass_product_quantity_restriction: number;
+    status: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    is_active: number;
+    is_system_user: number;
+    userable_type: string | null;
+    userable_id: number | null;
+    last_active_at: string | null;
+  };
 }
 
 interface LoanTransaction {
@@ -309,7 +339,7 @@ export default function LoanTransactions() {
       </header>
 
       {/* Filters */}
-      {/* <div className="mb-6 bg-white p-4 rounded-lg shadow border border-blue-100">
+      <div className="mb-6 bg-white p-4 rounded-lg shadow border border-blue-100">
         <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-blue-700 mb-1">Loan ID</label>
@@ -417,7 +447,7 @@ export default function LoanTransactions() {
             </div>
           </div>
         </form>
-      </div> */}
+      </div>
 
       {/* Loading / Empty */}
       {loading ? (
@@ -449,6 +479,10 @@ export default function LoanTransactions() {
                   <th>Paid Date</th>
                   <th>Due Date</th>
                   <th>Created</th>
+                  <th>User ID</th>       {/* NEW */}
+                  <th>Name</th>          {/* NEW */}
+                  <th>Phone</th>         {/* NEW */}
+                  <th>Email</th>         {/* NEW */}
                   {transactions.some((t) => t.type === 'LOAN_PURCHASE' && t.order) && <th>Order</th>}
                 </tr>
               </thead>
@@ -478,6 +512,10 @@ export default function LoanTransactions() {
                       <td>{formatDate(t.paid_date)}</td>
                       <td>{t.due_date ? new Date(t.due_date).toLocaleDateString() : 'N/A'}</td>
                       <td>{formatDate(t.created_at)}</td>
+                      <td>{t.loan.user.id}</td>                     {/* NEW */}
+                      <td>{t.loan.user.first_name} {t.loan.user.last_name}</td> {/* NEW */}
+                      <td>{t.loan.user.phone_number}</td>           {/* NEW */}
+                      <td>{t.loan.user.email ?? 'N/A'}</td>         {/* NEW */}
                       {t.type === 'LOAN_PURCHASE' && t.order && (
                         <td>
                           <span
@@ -493,7 +531,7 @@ export default function LoanTransactions() {
                     {/* Expandable Order Row */}
                     {t.type === 'LOAN_PURCHASE' && t.order && expandedOrders.has(t.order.id) && (
                       <tr>
-                        <td colSpan={11} className="p-0">
+                        <td colSpan={15} className="p-0">
                           <table className="sub-table">
                             <thead>
                               <tr>
