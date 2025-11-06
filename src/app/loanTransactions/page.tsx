@@ -469,35 +469,44 @@ export default function LoanTransactions() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Code</th>
-                  <th>Loan ID</th>
-                  <th>Order ID</th>
-                  <th>Amount</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Paid Date</th>
-                  <th>Due Date</th>
-                  <th>Created</th>
-                  <th>User ID</th>       {/* NEW */}
-                  <th>Name</th>          {/* NEW */}
-                  <th>Phone</th>         {/* NEW */}
-                  <th>Email</th>         {/* NEW */}
+                  <>
+                    <th>ID</th>
+                    <th>Code</th>
+                    <th>Loan ID</th>
+                    <th>Order ID</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Paid Date</th>
+                    <th>Due Date</th>
+                    <th>Created</th>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                  </>
                   {transactions.some((t) => t.type === 'LOAN_PURCHASE' && t.order) && <th>Order</th>}
                 </tr>
-              </thead>
+              </thead> 
+              {/* <thead>
+                <tr>
+                  <th>ID</th><th>Code</th><th>Loan ID</th><th>Order ID</th><th>Amount</th><th>Type</th><th>Status</th><th>Paid Date</th><th>Due Date</th><th>Created</th><th>User ID</th><th>Name</th><th>Phone</th><th>Email</th>
+                  {transactions.some((t) => t.type === 'LOAN_PURCHASE' && t.order) && <th>Order</th>}
+                </tr>
+              </thead> */}
               <tbody>
                 {transactions.map((t) => (
                   <React.Fragment key={t.id}>
                     <tr className={getRowClass(t)}>
-                      <td>{t.id}</td>
-                      <td>{t.loan_transaction_code ?? 'N/A'}</td>
-                      <td>{t.loan_id}</td>
-                      <td>{t.order_id ?? 'N/A'}</td>
-                      <td>{t.amount} ETB</td>
-                      <td>{t.type}</td>
-                      <td>
+                      {[
+                        t.id,
+                        t.loan_transaction_code ?? 'N/A',
+                        t.loan_id,
+                        t.order_id ?? 'N/A',
+                        `${t.amount} ETB`,
+                        t.type,
                         <span
+                          key="status"
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             t.status === 'PAID'
                               ? 'bg-green-100 text-green-800'
@@ -507,15 +516,17 @@ export default function LoanTransactions() {
                           }`}
                         >
                           {t.status || 'N/A'}
-                        </span>
-                      </td>
-                      <td>{formatDate(t.paid_date)}</td>
-                      <td>{t.due_date ? new Date(t.due_date).toLocaleDateString() : 'N/A'}</td>
-                      <td>{formatDate(t.created_at)}</td>
-                      <td>{t.loan.user.id}</td>                     {/* NEW */}
-                      <td>{t.loan.user.first_name} {t.loan.user.last_name}</td> {/* NEW */}
-                      <td>{t.loan.user.phone_number}</td>           {/* NEW */}
-                      <td>{t.loan.user.email ?? 'N/A'}</td>         {/* NEW */}
+                        </span>,
+                        formatDate(t.paid_date),
+                        t.due_date ? new Date(t.due_date).toLocaleDateString() : 'N/A',
+                        formatDate(t.created_at),
+                        t.loan?.user?.id ?? 'N/A',
+                        t.loan?.user ? `${t.loan.user.first_name} ${t.loan.user.last_name}` : 'N/A',
+                        t.loan?.user?.phone_number ?? 'N/A',
+                        t.loan?.user?.email ?? 'N/A',
+                      ].map((cell, index) => (
+                        <td key={index}>{cell}</td>
+                      ))}
                       {t.type === 'LOAN_PURCHASE' && t.order && (
                         <td>
                           <span
