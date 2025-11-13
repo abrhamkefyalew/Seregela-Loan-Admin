@@ -1,7 +1,7 @@
 // src/app/lib/PermissionsContext.tsx
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface PermissionGroup { id: number; title: string }
 interface PermissionsContextType {
@@ -14,6 +14,27 @@ const PermissionsContext = createContext<PermissionsContextType | undefined>(und
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('permissionGroups');
+    if (stored) {
+      try {
+        // FIX: stored is a STRING like "[{...}]"
+        let parsed: any = JSON.parse(stored);
+
+        // FIX: If it's a string (double-parsed), parse again
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+
+        if (Array.isArray(parsed)) {
+          setPermissionGroups(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to parse permissionGroups', e);
+      }
+    }
+  }, []);
 
   const hasPermission = (title: string) =>
     permissionGroups.some(g => g.title === title);

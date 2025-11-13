@@ -32,9 +32,17 @@ export default function LoginPage() {
         // ---------- 1. CLIENT-SIDE (UI) ----------
         localStorage.setItem("authToken", data.access_token);
         if (data.data) localStorage.setItem("user", JSON.stringify(data.data));
+        // if (Array.isArray(data.permission_groups)) {
+        //   setPermissionGroups(data.permission_groups);
+        //   // localStorage.setItem("permissionGroups", JSON.stringify(data.permission_groups));
+        //   localStorage.setItem('permissionGroups', JSON.stringify(data.permission_groups));
+        // }
+
+        // In login/page.tsx — SUCCESS BLOCK
         if (Array.isArray(data.permission_groups)) {
-          setPermissionGroups(data.permission_groups);
-          localStorage.setItem("permissionGroups", JSON.stringify(data.permission_groups));
+          const groups = data.permission_groups;
+          setPermissionGroups(groups);
+          localStorage.setItem('permissionGroups', JSON.stringify(groups)); // ← ONE JSON.stringify
         }
 
         // ---------- 2. SERVER-SIDE (MIDDLEWARE) ----------
