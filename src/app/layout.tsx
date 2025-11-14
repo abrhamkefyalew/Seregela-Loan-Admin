@@ -177,6 +177,7 @@
 
 
 // src/app/layout.tsx
+// src/app/layout.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -202,7 +203,6 @@ function RouteGuard({ children }: { children: ReactNode }) {
   const { permissionGroups } = usePermissions();
   const [mounted, setMounted] = useState(false);
 
-  // Fix hydration: only run after mount
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -217,11 +217,11 @@ function RouteGuard({ children }: { children: ReactNode }) {
     }
   }, [mounted, pathname, permissionGroups, router]);
 
-  // Show same loading on server & client (NO bg-gray-100 mismatch)
+  // SAME ON SERVER & CLIENT — NO bg-gray-100!
   if (!mounted || permissionGroups.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-xl font-medium text-gray-700">Loading...</div>
       </div>
     );
   }
