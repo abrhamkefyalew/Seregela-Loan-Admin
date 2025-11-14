@@ -1,3 +1,4 @@
+// src/app/login/page.tsx
 'use client';
 
 import { useState } from "react";
@@ -28,28 +29,30 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data?.access_token) {
-        // Save to localStorage (optional, for other parts of app)
+        // Save to localStorage (for other parts of app)
         localStorage.setItem("authToken", data.access_token);
         if (data.data) localStorage.setItem("user", JSON.stringify(data.data));
 
-        // Set permissions in context
+        // Set permissions
         if (Array.isArray(data.permission_groups)) {
           const groups = data.permission_groups;
           setPermissionGroups(groups);
           localStorage.setItem('permissionGroups', JSON.stringify(groups));
 
-          // CRITICAL: Tiny cookie with only titles (~150 bytes)
+          // CRITICAL: Set cookies with domain so Nginx passes them to backend
           const titlesOnly = groups.map((g: any) => g.title);
           const isProd = process.env.NODE_ENV === "production";
-          const cookieOptions = `path=/; max-age=86400; SameSite=Lax${isProd ? "; Secure" : ""}`;
+          
+          // THIS LINE IS THE FIX — domain= makes cookie visible to your IP/domain
+          const cookieOptions = `path=/; domain=${window.location.hostname}; max-age=86400; SameSite=Lax${isProd ? "; Secure" : ""}`;
 
           document.cookie = `authToken=${data.access_token}; ${cookieOptions}`;
           document.cookie = `perm=${JSON.stringify(titlesOnly)}; ${cookieOptions}`;
         }
 
-        // THIS IS THE MAGIC LINE THAT FIXES EVERYTHING
+        // Force Next.js to re-read cookies on next render
         router.push("/");
-        router.refresh(); // Forces Next.js to re-hydrate with new cookies
+        router.refresh();
 
       } else {
         setError(data?.message || "Login failed");
@@ -67,43 +70,54 @@ export default function LoginPage() {
       <form
         id="login-form"
         onSubmit={handleLogin}
-        className="bg-white p-8 rounded shadow-md w-full max-w-md"
+        className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md"
       >
-        <h2 className="text-2xl mb-4 font-bold text-black">Login to Dashboard</h2>
-        {error && <div className="text-red-600 mb-3">{error}</div>}
+        <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">
+          Loan Admin Dashboard
+        </h2>
 
-        <div className="mb-4">
-          <label className="block mb-1 font-medium text-black">Email</label>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
+
+        <div className="mb-6">
+          <label className="block text-gray-700 font-medium mb-2">Email</label>
           <input
             type="email"
             name="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 p-2 rounded text-black"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
             required
+            placeholder="admin@example.com"
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block mb-1 font-medium text-black">Password</label>
+        <div className="mb-8">
+          <label className="block text-gray-700 font-medium mb-2">Password</label>
           <input
             type="password"
             name="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 p-2 rounded text-black"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
             required
+            placeholder="••••••••"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className={`w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
+          className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
+            loading
+              ? "bg-blue-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl"
           }`}
         >
-          {loading ? "Logging in…" : "Login"}
+          {loading ? "Logging in..." : "Login to Dashboard"}
         </button>
       </form>
     </div>
