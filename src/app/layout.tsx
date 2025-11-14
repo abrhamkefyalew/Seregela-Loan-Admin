@@ -179,7 +179,7 @@
 // src/app/layout.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { PermissionsProvider, usePermissions } from './lib/PermissionsContext';
 import { ReactNode } from 'react';
@@ -200,19 +200,30 @@ function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { permissionGroups } = usePermissions();
+  const [mounted, setMounted] = useState(false);
+
+  // Fix hydration: only run after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (permissionGroups.length === 0) return;
+    if (!mounted || permissionGroups.length === 0) return;
 
     const cleanPath = pathname.replace(/\/$/, '') || '/';
     const required = PROTECTED_ROUTES[cleanPath];
     if (required && !permissionGroups.some(p => p.title === required)) {
       router.replace('/unauthorized');
     }
-  }, [pathname, permissionGroups, router]);
+  }, [mounted, pathname, permissionGroups, router]);
 
-  if (permissionGroups.length === 0) {
-    return <div className="flex items-center justify-center min-h-screen bg-gray-100">Loading...</div>;
+  // Show same loading on server & client (NO bg-gray-100 mismatch)
+  if (!mounted || permissionGroups.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
   return <>{children}</>;
