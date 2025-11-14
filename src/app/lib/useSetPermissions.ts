@@ -1,7 +1,9 @@
 // src/app/lib/useSetPermissions.ts
 'use client';
+
 import { useContext } from 'react';
 import { PermissionsContext } from './PermissionsContext';
+
 export function useSetPermissions() {
   const context = useContext(PermissionsContext);
   if (!context) {
