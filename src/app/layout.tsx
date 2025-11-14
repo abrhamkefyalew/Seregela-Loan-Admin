@@ -201,25 +201,28 @@ function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { permissionGroups } = usePermissions();
-  const [isClient, setIsClient] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
+  // This runs on client only — fixes hydration 100%
   useEffect(() => {
-    setIsClient(true);
+    setHydrated(true);
   }, []);
 
+  // Only check permissions after hydration
   useEffect(() => {
-    if (!isClient) return;
-    if (permissionGroups.length === 0) return; // Still loading
+    if (!hydrated) return;
+    if (permissionGroups.length === 0) return;
 
     const cleanPath = pathname.replace(/\/$/, '') || '/';
     const required = PROTECTED_ROUTES[cleanPath];
     if (required && !permissionGroups.some(p => p.title === required)) {
       router.replace('/unauthorized');
     }
-  }, [isClient, pathname, permissionGroups, router]);
+  }, [hydrated, pathname, permissionGroups, router]);
 
-  // THIS IS THE ONLY THING THAT WILL NEVER CAUSE HYDRATION ERROR
-  if (!isClient || permissionGroups.length === 0) {
+  // THIS IS THE ONLY THING THAT WILL NEVER BREAK HYDRATION
+  // Server and client render THE EXACT SAME HTML
+  if (!hydrated || permissionGroups.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-xl font-medium text-gray-700">Loading...</div>
