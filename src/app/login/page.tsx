@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePermissions } from "@/app/lib/PermissionsContext";
+import { useSetPermissions } from "@/app/lib/useSetPermissions"; // ← NEW
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { setPermissionGroups } = usePermissions();
+  const setPermissionGroups = useSetPermissions(); // ← NOW TYPE-SAFE
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,30 +29,20 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data?.access_token) {
-        // ---------- 1. CLIENT-SIDE (UI) ----------
         localStorage.setItem("authToken", data.access_token);
         if (data.data) localStorage.setItem("user", JSON.stringify(data.data));
-        // if (Array.isArray(data.permission_groups)) {
-        //   setPermissionGroups(data.permission_groups);
-        //   // localStorage.setItem("permissionGroups", JSON.stringify(data.permission_groups));
-        //   localStorage.setItem('permissionGroups', JSON.stringify(data.permission_groups));
-        // }
 
-        // In login/page.tsx — SUCCESS BLOCK
         if (Array.isArray(data.permission_groups)) {
           const groups = data.permission_groups;
-          setPermissionGroups(groups);
-          localStorage.setItem('permissionGroups', JSON.stringify(groups)); // ← ONE JSON.stringify
+          setPermissionGroups(groups); // ← Now fully typed
+          localStorage.setItem('permissionGroups', JSON.stringify(groups));
+
+          const titlesOnly = groups.map((g: any) => g.title);
+          const isProd = process.env.NODE_ENV === "production";
+          const opts = `path=/; max-age=86400; SameSite=Lax${isProd ? "; Secure" : ""}`;
+          document.cookie = `authToken=${data.access_token}; ${opts}`;
+          document.cookie = `perm=${JSON.stringify(titlesOnly)}; ${opts}`;
         }
-
-        // ---------- 2. SERVER-SIDE (MIDDLEWARE) ----------
-        // 24-hour cookie, Secure only in production
-        const isProd = process.env.NODE_ENV === "production";
-        const maxAge = 60 * 60 * 24; // 24 h
-        const cookieOptions = `path=/; max-age=${maxAge}; SameSite=Strict${isProd ? "; Secure" : ""}`;
-
-        document.cookie = `authToken=${data.access_token}; ${cookieOptions}`;
-        document.cookie = `permissionGroups=${JSON.stringify(data.permission_groups || [])}; ${cookieOptions}`;
 
         router.push("/");
       } else {
@@ -66,6 +56,7 @@ export default function LoginPage() {
     }
   };
 
+  // ... rest of your JSX
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form
@@ -111,5 +102,5 @@ export default function LoginPage() {
         </button>
       </form>
     </div>
-  );
+  )
 }
