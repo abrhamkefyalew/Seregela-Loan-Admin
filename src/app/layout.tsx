@@ -98,71 +98,6 @@
 
 
 
-// src/app/layout.tsx
-'use client';
-
-import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { PermissionsProvider, usePermissions } from './lib/PermissionsContext';
-import { ReactNode } from 'react';
-import "./globals.css";
-
-const PROTECTED_ROUTES: Record<string, string> = {
-  '/': 'Order Management',
-  '/users': 'Customer Management',
-  '/products': 'Product Management',
-  '/reports': 'Report Management',
-  '/loan_users': 'Order Management',
-  '/overdue_loans': 'Order Management',
-  '/loanTransactions': 'Order Management',
-  '/completedLoans': 'Order Management',
-};
-
-function RouteGuard({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { permissionGroups } = usePermissions();
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    // Wait for REAL array (not string)
-    if (Array.isArray(permissionGroups) && permissionGroups.length > 0) {
-      setIsReady(true);
-    }
-  }, [permissionGroups]);
-
-  useEffect(() => {
-    if (!isReady) return;
-
-    const cleanPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-    const required = PROTECTED_ROUTES[cleanPath];
-    if (!required) return;
-
-    const hasPermission = permissionGroups.some(p => p.title === required);
-    if (!hasPermission) {
-      router.replace('/unauthorized');
-    }
-  }, [isReady, pathname, permissionGroups, router]);
-
-  if (!isReady) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-
-  return <>{children}</>;
-}
-
-export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <PermissionsProvider>
-          <RouteGuard>{children}</RouteGuard>
-        </PermissionsProvider>
-      </body>
-    </html>
-  );
-}
-
 
 
 
@@ -227,3 +162,74 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 //     </html>
 //   );
 // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// src/app/layout.tsx
+'use client';
+
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { PermissionsProvider, usePermissions } from './lib/PermissionsContext';
+import { ReactNode } from 'react';
+import "./globals.css";
+
+const PROTECTED_ROUTES: Record<string, string> = {
+  '/': 'Order Management',
+  '/users': 'Customer Management',
+  '/products': 'Product Management',
+  '/reports': 'Report Management',
+  '/loan_users': 'Order Management',
+  '/overdue_loans': 'Order Management',
+  '/loanTransactions': 'Order Management',
+  '/completedLoans': 'Order Management',
+};
+
+function RouteGuard({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { permissionGroups } = usePermissions();
+
+  useEffect(() => {
+    if (permissionGroups.length === 0) return; // Still loading
+
+    const cleanPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    const required = PROTECTED_ROUTES[cleanPath];
+    if (required && !permissionGroups.some(p => p.title === required)) {
+      router.replace('/unauthorized');
+    }
+  }, [pathname, permissionGroups, router]);
+
+  if (permissionGroups.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        Loading...
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <PermissionsProvider>
+          <RouteGuard>{children}</RouteGuard>
+        </PermissionsProvider>
+      </body>
+    </html>
+  );
+}

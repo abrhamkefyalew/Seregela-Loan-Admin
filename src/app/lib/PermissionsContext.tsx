@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface PermissionGroup { id: number; title: string }
+
 interface PermissionsContextType {
   permissionGroups: PermissionGroup[];
   hasPermission: (title: string) => boolean;
@@ -12,26 +13,28 @@ interface PermissionsContextType {
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
 
+// Helper: Read cookie
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem('permissionGroups');
-    if (stored) {
+    const cookieValue = getCookie('permissionGroups');
+    if (cookieValue) {
       try {
-        // FIX: stored is a STRING like "[{...}]"
-        let parsed: any = JSON.parse(stored);
-
-        // FIX: If it's a string (double-parsed), parse again
+        let parsed: any = JSON.parse(cookieValue);
         if (typeof parsed === 'string') {
-          parsed = JSON.parse(parsed);
+          parsed = JSON.parse(parsed); // double-stringified fix
         }
-
         if (Array.isArray(parsed)) {
           setPermissionGroups(parsed);
         }
       } catch (e) {
-        console.error('Failed to parse permissionGroups', e);
+        console.error('Failed to parse permissionGroups cookie', e);
       }
     }
   }, []);
