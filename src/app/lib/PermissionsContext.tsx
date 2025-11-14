@@ -1,9 +1,9 @@
-// src/app/lib/PermissionsContext.tsx
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface PermissionGroup { id: number; title: string }
+
 interface PermissionsContextType {
   permissionGroups: PermissionGroup[];
   hasPermission: (title: string) => boolean;
@@ -21,41 +21,27 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
 
   useEffect(() => {
-    // Prefer cookie (reliable on live)
-    let cookieValue = getCookie('perm');
-    if (!cookieValue) {
-      cookieValue = getCookie('permissionGroups');
-    }
-    if (cookieValue) {
+    const permCookie = getCookie('perm');
+    if (permCookie) {
       try {
-        let parsed: any = JSON.parse(cookieValue);
-        if (typeof parsed === 'string') {
-          parsed = JSON.parse(parsed);
-        }
-        if (Array.isArray(parsed)) {
-          // If titles only, convert to objects
-          const groups = parsed.map((title: string) => ({ id: 0, title }));
+        const titles = JSON.parse(permCookie);
+        if (Array.isArray(titles)) {
+          const groups = titles.map((title: string) => ({ id: 0, title }));
           setPermissionGroups(groups);
+          return;
         }
       } catch (e) {
-        console.error('Failed to parse permission cookie', e);
+        console.error('Failed to parse perm cookie', e);
       }
-    } else {
-      // Fallback to localStorage
-      const stored = localStorage.getItem('permissionGroups');
-      if (stored) {
-        try {
-          let parsed: any = JSON.parse(stored);
-          if (typeof parsed === 'string') {
-            parsed = JSON.parse(parsed);
-          }
-          if (Array.isArray(parsed)) {
-            setPermissionGroups(parsed);
-          }
-        } catch (e) {
-          console.error('Failed to parse permissionGroups localStorage', e);
-        }
-      }
+    }
+
+    // Fallback
+    const stored = localStorage.getItem('permissionGroups');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setPermissionGroups(parsed);
+      } catch (e) {}
     }
   }, []);
 

@@ -204,18 +204,15 @@ function RouteGuard({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (permissionGroups.length === 0) return;
 
-    const cleanPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    const cleanPath = pathname.replace(/\/$/, '') || '/';
     const required = PROTECTED_ROUTES[cleanPath];
-    if (!required) return;
-
-    const hasPermission = permissionGroups.some(p => p.title === required);
-    if (!hasPermission) {
+    if (required && !permissionGroups.some(p => p.title === required)) {
       router.replace('/unauthorized');
     }
   }, [pathname, permissionGroups, router]);
 
   if (permissionGroups.length === 0) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-gray-100">Loading...</div>;
   }
 
   return <>{children}</>;
