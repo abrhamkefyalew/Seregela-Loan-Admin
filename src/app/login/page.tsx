@@ -40,15 +40,16 @@ export default function LoginPage() {
           const titlesOnly = groups.map((g: any) => g.title);
           const isProd = process.env.NODE_ENV === "production";
           
-          // NO DOMAIN = WORKS EVERYWHERE (localhost, IP, domain)
+          // THIS IS PERFECT — NO domain= → works on IP
           const cookieOptions = `path=/; max-age=86400; SameSite=Lax${isProd ? "; Secure" : ""}`;
 
           document.cookie = `authToken=${data.access_token}; ${cookieOptions}`;
           document.cookie = `perm=${JSON.stringify(titlesOnly)}; ${cookieOptions}`;
         }
 
+        // THIS IS THE MAGIC THAT MAKES IT WORK ON LIVE
         router.push("/");
-        router.refresh();
+        router.refresh();  // ← Forces Next.js to re-render with new cookies
       } else {
         setError(data?.message || "Login failed");
       }
