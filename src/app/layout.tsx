@@ -201,24 +201,25 @@ function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { permissionGroups } = usePermissions();
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted || permissionGroups.length === 0) return;
+    if (!isClient) return;
+    if (permissionGroups.length === 0) return; // Still loading
 
     const cleanPath = pathname.replace(/\/$/, '') || '/';
     const required = PROTECTED_ROUTES[cleanPath];
     if (required && !permissionGroups.some(p => p.title === required)) {
       router.replace('/unauthorized');
     }
-  }, [mounted, pathname, permissionGroups, router]);
+  }, [isClient, pathname, permissionGroups, router]);
 
-  // SAME ON SERVER & CLIENT — NO bg-gray-100!
-  if (!mounted || permissionGroups.length === 0) {
+  // THIS IS THE ONLY THING THAT WILL NEVER CAUSE HYDRATION ERROR
+  if (!isClient || permissionGroups.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-xl font-medium text-gray-700">Loading...</div>

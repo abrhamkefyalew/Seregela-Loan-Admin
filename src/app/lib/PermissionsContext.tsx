@@ -1,3 +1,4 @@
+// src/app/lib/PermissionsContext.tsx
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
@@ -26,22 +27,21 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       try {
         const titles = JSON.parse(permCookie);
         if (Array.isArray(titles)) {
-          const groups = titles.map((title: string) => ({ id: 0, title }));
-          setPermissionGroups(groups);
+          setPermissionGroups(titles.map(title => ({ id: 0, title })));
           return;
         }
       } catch (e) {
-        console.error('Failed to parse perm cookie', e);
+        console.error("Failed to parse perm cookie");
       }
     }
 
-    // Fallback
+    // Fallback to localStorage
     const stored = localStorage.getItem('permissionGroups');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) setPermissionGroups(parsed);
-      } catch (e) {}
+      } catch {}
     }
   }, []);
 
