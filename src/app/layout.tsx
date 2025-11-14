@@ -175,17 +175,13 @@
 
 
 
-
-// src/app/layout.tsx
 // src/app/layout.tsx
 'use client';
-
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { PermissionsProvider, usePermissions } from './lib/PermissionsContext';
 import { ReactNode } from 'react';
 import "./globals.css";
-
 const PROTECTED_ROUTES: Record<string, string> = {
   '/': 'Order Management',
   '/users': 'Customer Management',
@@ -196,33 +192,29 @@ const PROTECTED_ROUTES: Record<string, string> = {
   '/loanTransactions': 'Order Management',
   '/completedLoans': 'Order Management',
 };
-
 function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { permissionGroups } = usePermissions();
   const [hydrated, setHydrated] = useState(false);
 
-  // This runs on client only — fixes hydration 100%
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Only check permissions after hydration
   useEffect(() => {
     if (!hydrated) return;
-    if (permissionGroups.length === 0) return;
 
     const cleanPath = pathname.replace(/\/$/, '') || '/';
     const required = PROTECTED_ROUTES[cleanPath];
+
     if (required && !permissionGroups.some(p => p.title === required)) {
       router.replace('/unauthorized');
     }
   }, [hydrated, pathname, permissionGroups, router]);
 
-  // THIS IS THE ONLY THING THAT WILL NEVER BREAK HYDRATION
-  // Server and client render THE EXACT SAME HTML
-  if (!hydrated || permissionGroups.length === 0) {
+  // Only show loading during hydration
+  if (!hydrated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-xl font-medium text-gray-700">Loading...</div>
@@ -232,7 +224,6 @@ function RouteGuard({ children }: { children: ReactNode }) {
 
   return <>{children}</>;
 }
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
