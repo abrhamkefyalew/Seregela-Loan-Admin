@@ -183,15 +183,27 @@ import { usePathname, useRouter } from 'next/navigation';
 import { PermissionsProvider, usePermissions } from './lib/PermissionsContext';
 import { ReactNode } from 'react';
 import "./globals.css";
+// const PROTECTED_ROUTES: Record<string, string> = {
+//   '/': 'Order Management',
+//   '/users': 'Customer Management',
+//   '/products': 'Product Management',
+//   '/reports': 'Report Management',
+//   '/loan_users': 'Order Management',
+//   '/overdue_loans': 'Order Management',
+//   '/loanTransactions': 'Order Management',
+//   '/completedLoans': 'Order Management',
+// };
+//
+//
 const PROTECTED_ROUTES: Record<string, string> = {
-  '/': 'Order Management',
-  '/users': 'Customer Management',
-  '/products': 'Product Management',
-  '/reports': 'Report Management',
-  '/loan_users': 'Order Management',
-  '/overdue_loans': 'Order Management',
-  '/loanTransactions': 'Order Management',
-  '/completedLoans': 'Order Management',
+  '/': 'Loan Management',
+  '/users': 'Loan Management',
+  '/products': 'Loan Management',
+  '/reports/excel': 'Finance Management',
+  '/loan_users': 'Loan Management',
+  '/overdue_loans': 'Loan Management',
+  '/loanTransactions': 'Finance Management',
+  '/completedLoans': 'Finance Management',
 };
 function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();

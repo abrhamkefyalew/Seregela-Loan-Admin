@@ -26,15 +26,27 @@ export default function NavigationBar({
   const router = useRouter();
   const { hasPermission } = usePermissions();
 
+  // const navItems: NavItem[] = [
+  //   { key: "loans", label: "Loans", route: "/", requiredPermission: "Order Management" },
+  //   { key: "loan_users", label: "Loan Users", route: "/loan_users", requiredPermission: "Order Management" },
+  //   { key: "products", label: "Products", route: "/products", requiredPermission: "Product Management" },
+  //   { key: "users", label: "Users", route: "/users", requiredPermission: "Customer Management" },
+  //   { key: "overdue_loans", label: "Overdue Loans", route: "/overdue_loans", requiredPermission: "Order Management" },
+  //   { key: "reports", label: "Reports", route: "/reports/excel", requiredPermission: "Report Management" },
+  //   { key: "paid_loan_transactions", label: "Loan Transactions [Paid]", route: "/loanTransactions", requiredPermission: "Order Management" },
+  //   { key: "completed_loans", label: "Loans [PAYMENT COMPLETED]", route: "/completedLoans", requiredPermission: "Order Management" },
+  // ];
+  //
+  //
   const navItems: NavItem[] = [
-    { key: "loans", label: "Loans", route: "/", requiredPermission: "Order Management" },
-    { key: "loan_users", label: "Loan Users", route: "/loan_users", requiredPermission: "Order Management" },
-    { key: "products", label: "Products", route: "/products", requiredPermission: "Product Management" },
-    { key: "users", label: "Users", route: "/users", requiredPermission: "Customer Management" },
-    { key: "overdue_loans", label: "Overdue Loans", route: "/overdue_loans", requiredPermission: "Order Management" },
-    { key: "reports", label: "Reports", route: "/reports/excel", requiredPermission: "Report Management" },
-    { key: "paid_loan_transactions", label: "Loan Transactions [Paid]", route: "/loanTransactions", requiredPermission: "Order Management" },
-    { key: "completed_loans", label: "Loans [PAYMENT COMPLETED]", route: "/completedLoans", requiredPermission: "Order Management" },
+    { key: "loans", label: "Loans", route: "/", requiredPermission: "Loan Management" },
+    { key: "loan_users", label: "Loan Users", route: "/loan_users", requiredPermission: "Loan Management" },
+    { key: "products", label: "Products", route: "/products", requiredPermission: "Loan Management" },
+    { key: "users", label: "Users", route: "/users", requiredPermission: "Loan Management" },
+    { key: "overdue_loans", label: "Overdue Loans", route: "/overdue_loans", requiredPermission: "Loan Management" },
+    { key: "reports", label: "Reports", route: "/reports/excel", requiredPermission: "Finance Management" },
+    { key: "paid_loan_transactions", label: "Loan Transactions [Paid]", route: "/loanTransactions", requiredPermission: "Finance Management" },
+    { key: "completed_loans", label: "Loans [PAYMENT COMPLETED]", route: "/completedLoans", requiredPermission: "Finance Management" },
   ];
 
   const handleNavClick = (route: string, key: string) => {
