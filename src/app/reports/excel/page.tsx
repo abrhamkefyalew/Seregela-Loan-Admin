@@ -25,10 +25,10 @@ export default function ReportsExcel() {
   const [downloading, setDownloading] = useState(false);
 
   // ==================== LOAN-ONLY REPORT STATES ====================
-  const [requirePhone, setRequirePhone] = useState(true);
-  const [requireEmail, setRequireEmail] = useState(true);
-  const [requireFirstName, setRequireFirstName] = useState(true);
-  const [requireLastName, setRequireLastName] = useState(true);
+  const [requirePhone, setRequirePhone] = useState(false);
+  const [requireEmail, setRequireEmail] = useState(false);
+  const [requireFirstName, setRequireFirstName] = useState(false);
+  const [requireLastName, setRequireLastName] = useState(false);
 
   // New: Multi-select status using checkboxes
   const [notApproved, setNotApproved] = useState(false);
