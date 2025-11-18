@@ -495,16 +495,9 @@ export default function ReportsExcel() {
             <li>• Both sections are completely independent</li>
           </ul>
           {/* Instructions */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-2">Top Section</h3>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• You can use any combination of the checkboxes</li>
-              <li>• Date filter included for loan</li>
-            </ul>
-          </div>
 
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-2">Bottom Section</h3>
+            <h3 className="font-semibold text-blue-900 mb-2">Top Section</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• Fill specific IDs (User/Loan/etc.) OR leave blank for all records</li>
               <li>• Check transaction filters as needed</li>
@@ -513,6 +506,16 @@ export default function ReportsExcel() {
               <li>• Multi-sheet: One sheet per user | Single-sheet: All in one tab</li>
             </ul>
           </div>
+          
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h3 className="font-semibold text-blue-900 mb-2">Bottom Section</h3>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• You can use any combination of the checkboxes</li>
+              <li>• Date filter included for loan</li>
+            </ul>
+          </div>
+
+          
 
         </div>
       </div>
