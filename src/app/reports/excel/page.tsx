@@ -510,7 +510,7 @@ export default function ReportsExcel() {
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <h3 className="font-semibold text-blue-900 mb-2">Bottom Section</h3>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• You can use any combination of the checkboxes</li>
+              <li>• any combination of the checkboxes can be used</li>
               <li>• Date filter included for loan</li>
             </ul>
           </div>
