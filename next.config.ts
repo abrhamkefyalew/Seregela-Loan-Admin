@@ -1,3 +1,5 @@
+// next.config.ts
+
 // Import the Next.js configuration type to provide strong typing support
 import type { NextConfig } from "next";
 

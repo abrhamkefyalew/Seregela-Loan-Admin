@@ -7,42 +7,42 @@ import NavigationBar from '../components/NavigationBar';
 
 interface User {
   id: number;
-  user_name: string | null;
-  first_name: string;
-  last_name: string;
-  email: string | null;
-  phone_number: string;
-  is_verified: number;
-  email_verified_at: string | null;
-  firebase_token: string | null;
-  firebase_id: string;
-  cbe_birr_plus_token: string | null;
-  image: string | null;
-  cover_photo: string | null;
-  provider_id: string | null;
-  provider: string | null;
-  corporate_id: string | null;
-  wallet_balance: number;
-  bypass_product_quantity_restriction: number;
-  status: number;
+  user_id: number;
+  loan_balance: string;
+  loan_cap: string;
+  is_approved: number;
+  approved_date: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  is_active: number;
-  is_system_user: number;
-  userable_type: string | null;
-  userable_id: string | null;
-  last_active_at: string | null;
-  loan_user?: {
+  user: {
     id: number;
-    user_id: number;
-    loan_balance: string;
-    loan_cap: string;
-    is_approved: number;
-    approved_date: string | null;
+    user_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    phone_number: string;
+    is_verified: number;
+    email_verified_at: string | null;
+    firebase_token: string | null;
+    firebase_id: string | null;
+    cbe_birr_plus_token: string | null;
+    image: string | null;
+    cover_photo: string | null;
+    provider_id: string | null;
+    provider: string | null;
+    corporate_id: string | null;
+    wallet_balance: number;
+    bypass_product_quantity_restriction: number;
+    status: number;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
+    is_active: number;
+    is_system_user: number;
+    userable_type: string | null;
+    userable_id: string | null;
+    last_active_at: string | null;
   };
 }
 
@@ -265,7 +265,7 @@ export default function LoanUsers() {
             ? {
                 ...user,
                 ...updatedUser,
-                loan_user: updatedUser.loan_user || user.loan_user,
+                user: updatedUser.user || user.user,
               }
             : user
         )
@@ -425,47 +425,122 @@ export default function LoanUsers() {
       </div>
 
       {loading ? (
-        <div className="text-center text-blue-600 py-8">Loading users...</div>
+        <div className="text-center text-blue-600 py-8">Loading loan users...</div>
       ) : users.length === 0 ? (
         <div className="text-center text-blue-600 py-8">
-          No users found. Try adjusting your filters.
+          No loan users found. Try adjusting your filters.
         </div>
       ) : (
         <div className="space-y-6">
-          {users.map((user) => {
-            const sections = expandedSections[user.id] || new Set();
+          {users.map((loan_user) => {
+            const sections = expandedSections[loan_user.id] || new Set();
             return (
-              <div key={user.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
+              <div key={loan_user.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
                 <div className="w-full min-w-0">
+                  {/* User Summary Section (Always Visible, Horizontal) */}
+                  
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold text-blue-900 mb-2">User Summary</h2>
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm border border-blue-200 rounded-lg p-4">
+                          <div>
+                            <div className="font-semibold text-blue-700">First Name</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.first_name)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Last Name</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.last_name)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Email</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.email)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Phone Number</div>
+                            <div className="text-1e40af">{renderValue(loan_user.user.phone_number)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Loan User Details (Always Visible, at the Top) */}
+                  <div className="mb-6 bg-blue-100 p-4 rounded-lg border border-blue-300">
+                    <h2 className="text-lg font-semibold text-blue-900 mb-2">Loan User Details</h2>
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan User ID</div>
+                            <div>{renderValue(loan_user.id)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">User ID</div>
+                            <div>{renderValue(loan_user.user_id)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan Balance</div>
+                            <div>{renderValue(loan_user.loan_balance)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan Cap</div>
+                            <div>{renderValue(loan_user.loan_cap)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan User Approved</div>
+                            <div>{loan_user.is_approved ? 'Yes' : 'No'}</div>
+                          </div>
+                          {/* <div>
+                            <div className="font-semibold text-blue-700">Approved Date</div>
+                            <div>{renderValue(loan_user.approved_date)}</div>
+                          </div> */}
+                          <div>
+                            <div className="font-semibold text-blue-700">Created At</div>
+                            <div>{renderValue(new Date(loan_user.created_at).toLocaleString())}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Updated At</div>
+                            <div>{renderValue(new Date(loan_user.updated_at).toLocaleString())}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Deleted At</div>
+                            <div>{renderValue(loan_user.deleted_at)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Approve Button and Form */}
                   <div className="mb-4 flex justify-end items-center space-x-2">
-                    <button
-                      onClick={() => handleApproveToggle(user.id)}
-                      disabled={user.loan_user?.is_approved === 1 || approving[user.id]}
+                    {/* <button
+                      onClick={() => handleApproveToggle(loan_user.id)}
+                      disabled={loan_user.is_approved === 1 || approving[loan_user.id]}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
-                        user.loan_user?.is_approved === 1
+                        loan_user.is_approved === 1
                           ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                          : approving[user.id]
+                          : approving[loan_user.id]
                           ? 'bg-green-700 text-white cursor-not-allowed'
                           : 'bg-green-600 hover:bg-green-700 text-white'
                       }`}
                     >
-                      {approving[user.id] ? (
+                      {approving[loan_user.id] ? (
                         <>
                           <span className="spinner mr-2" />
                           Approving...
                         </>
-                      ) : user.loan_user?.is_approved === 1 ? (
+                      ) : loan_user.is_approved === 1 ? (
                         'Approved'
                       ) : (
                         'Approve Loan User'
                       )}
-                    </button>
+                    </button> */}
                   </div>
 
                   {/* Approve Form (Collapsible) */}
                   <AnimatePresence>
-                    {sections.has('approve') && !user.loan_user?.is_approved && (
+                    {sections.has('approve') && !loan_user.is_approved && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -479,8 +554,8 @@ export default function LoanUsers() {
                               <label className="block text-sm font-medium text-blue-700 mb-1">Loan Cap</label>
                               <input
                                 type="number"
-                                value={approveForm[user.id]?.loan_cap || ''}
-                                onChange={(e) => handleApproveFormChange(user.id, 'loan_cap', e.target.value)}
+                                value={approveForm[loan_user.id]?.loan_cap || ''}
+                                onChange={(e) => handleApproveFormChange(loan_user.id, 'loan_cap', e.target.value)}
                                 className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="e.g., 6000"
                                 min="0"
@@ -490,15 +565,15 @@ export default function LoanUsers() {
                           </div>
                           <div className="mt-4 flex justify-end space-x-2">
                             <button
-                              onClick={() => handleApprove(user.id)}
-                              disabled={approving[user.id]}
+                              onClick={() => handleApprove(loan_user.id)}
+                              disabled={approving[loan_user.id]}
                               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                approving[user.id]
+                                approving[loan_user.id]
                                   ? 'bg-blue-900 text-white cursor-not-allowed'
                                   : 'bg-blue-600 text-white hover:bg-blue-700'
                               }`}
                             >
-                              {approving[user.id] ? (
+                              {approving[loan_user.id] ? (
                                 <>
                                   <span className="spinner mr-2" />
                                   Submitting...
@@ -508,7 +583,7 @@ export default function LoanUsers() {
                               )}
                             </button>
                             <button
-                              onClick={() => toggleSection(user.id, 'approve')}
+                              onClick={() => toggleSection(loan_user.id, 'approve')}
                               className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-200 hover:bg-blue-300 text-blue-900 transition-colors"
                             >
                               Cancel
@@ -519,148 +594,135 @@ export default function LoanUsers() {
                     )}
                   </AnimatePresence>
 
-                  {/* User Details Section (Always Visible) */}
-                  <div className="mb-6">
-                    <h2 className="text-lg font-semibold text-blue-900 mb-2">User Details</h2>
-                    <div className="overflow-x-auto">
-                      <div className="inline-block min-w-full align-middle">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm border border-blue-200 rounded-lg p-4">
-                          <div>
-                            <div className="font-semibold text-blue-700">User ID</div>
-                            <div>{renderValue(user.id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">User Name</div>
-                            <div>{renderValue(user.user_name)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">First Name</div>
-                            <div>{renderValue(user.first_name)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Last Name</div>
-                            <div>{renderValue(user.last_name)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Email</div>
-                            <div>{renderValue(user.email)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Phone Number</div>
-                            <div>{renderValue(user.phone_number)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Is Verified</div>
-                            <div>{user.is_verified ? 'Yes' : 'No'}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Email Verified At</div>
-                            <div>{renderValue(user.email_verified_at)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Firebase ID</div>
-                            <div>{renderValue(user.firebase_id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Wallet Balance</div>
-                            <div>{renderValue(user.wallet_balance)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Bypass Quantity Restriction</div>
-                            <div>{user.bypass_product_quantity_restriction ? 'Yes' : 'No'}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">User Status</div>
-                            <div>{renderValue(user.status)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Is Active</div>
-                            <div>{user.is_active ? 'Yes' : 'No'}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Is System User</div>
-                            <div>{user.is_system_user ? 'Yes' : 'No'}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Provider</div>
-                            <div>{renderValue(user.provider)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Corporate ID</div>
-                            <div>{renderValue(user.corporate_id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Provider ID</div>
-                            <div>{renderValue(user.provider_id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Image</div>
-                            <div>{renderValue(user.image)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Cover Photo</div>
-                            <div>{renderValue(user.cover_photo)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Userable Type</div>
-                            <div>{renderValue(user.userable_type)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Userable ID</div>
-                            <div>{renderValue(user.userable_id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Last Active At</div>
-                            <div>{renderValue(user.last_active_at)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Created At</div>
-                            <div>{renderValue(new Date(user.created_at).toLocaleString())}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Updated At</div>
-                            <div>{renderValue(new Date(user.updated_at).toLocaleString())}</div>
-                          </div>
-                          {user.loan_user && (
-                            <>
-                              <div>
-                                <div className="font-semibold text-blue-700">Loan User ID</div>
-                                <div>{renderValue(user.loan_user.id)}</div>
+                  {/* User Details (Collapsible) */}
+                  <div className="mb-4">
+                    <button
+                      onClick={() => toggleSection(loan_user.id, 'userDetails')}
+                      className="flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    >
+                      {sections.has('userDetails') ? 'Hide User Details' : 'Show User Details'}
+                    </button>
+                  </div>
+                  <AnimatePresence>
+                    {sections.has('userDetails') && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <h2 className="text-lg font-semibold text-blue-900 mb-2">User Details</h2>
+                          <div className="overflow-x-auto">
+                            <div className="inline-block min-w-full align-middle">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <div className="font-semibold text-blue-700">User ID</div>
+                                  <div>{renderValue(loan_user.user.id)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">User Name</div>
+                                  <div>{renderValue(loan_user.user.user_name)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">First Name</div>
+                                  <div>{renderValue(loan_user.user.first_name)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Last Name</div>
+                                  <div>{renderValue(loan_user.user.last_name)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Email</div>
+                                  <div>{renderValue(loan_user.user.email)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Phone Number</div>
+                                  <div>{renderValue(loan_user.user.phone_number)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Is Verified</div>
+                                  <div>{loan_user.user.is_verified ? 'Yes' : 'No'}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Email Verified At</div>
+                                  <div>{renderValue(loan_user.user.email_verified_at)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Firebase ID</div>
+                                  <div>{renderValue(loan_user.user.firebase_id)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Wallet Balance</div>
+                                  <div>{renderValue(loan_user.user.wallet_balance)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Bypass Quantity Restriction</div>
+                                  <div>{loan_user.user.bypass_product_quantity_restriction ? 'Yes' : 'No'}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">User Status</div>
+                                  <div>{renderValue(loan_user.user.status)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Is Active</div>
+                                  <div>{loan_user.user.is_active ? 'Yes' : 'No'}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Is System User</div>
+                                  <div>{loan_user.user.is_system_user ? 'Yes' : 'No'}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Provider</div>
+                                  <div>{renderValue(loan_user.user.provider)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Corporate ID</div>
+                                  <div>{renderValue(loan_user.user.corporate_id)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Provider ID</div>
+                                  <div>{renderValue(loan_user.user.provider_id)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Image</div>
+                                  <div>{renderValue(loan_user.user.image)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Cover Photo</div>
+                                  <div>{renderValue(loan_user.user.cover_photo)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Userable Type</div>
+                                  <div>{renderValue(loan_user.user.userable_type)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Userable ID</div>
+                                  <div>{renderValue(loan_user.user.userable_id)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Last Active At</div>
+                                  <div>{renderValue(loan_user.user.last_active_at)}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Created At</div>
+                                  <div>{renderValue(new Date(loan_user.user.created_at).toLocaleString())}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Updated At</div>
+                                  <div>{renderValue(new Date(loan_user.user.updated_at).toLocaleString())}</div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-blue-700">Deleted At</div>
+                                  <div>{renderValue(loan_user.user.deleted_at)}</div>
+                                </div>
                               </div>
-                              <div>
-                                <div className="font-semibold text-blue-700">Loan Balance</div>
-                                <div>{renderValue(user.loan_user.loan_balance)}</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-blue-700">Loan Cap</div>
-                                <div>{renderValue(user.loan_user.loan_cap)}</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-blue-700">Loan User Approved</div>
-                                <div>{user.loan_user.is_approved ? 'Yes' : 'No'}</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-blue-700">Approved Date</div>
-                                <div>{renderValue(user.loan_user.approved_date)}</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-blue-700">Loan User Created At</div>
-                                <div>{renderValue(new Date(user.loan_user.created_at).toLocaleString())}</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-blue-700">Loan User Updated At</div>
-                                <div>{renderValue(new Date(user.loan_user.updated_at).toLocaleString())}</div>
-                              </div>
-                            </>
-                          )}
-                          <div className="col-span-full">
-                            <div className="font-semibold text-blue-700">Deleted At</div>
-                            <div>{renderValue(user.deleted_at)}</div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             );

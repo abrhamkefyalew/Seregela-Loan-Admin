@@ -23,6 +23,7 @@ interface Product {
   total_quantity: number;
   image_paths: string[];
   is_loan_eligible: boolean;
+  loan_price: string | null;
 }
 
 interface ProductMeta {
@@ -60,6 +61,7 @@ export default function Products() {
     price_lte: string;
     only_trashed: boolean;
     with_trashed: boolean;
+    is_loan_eligible_search: boolean;
   }>({
     name: '',
     brand: '',
@@ -69,7 +71,10 @@ export default function Products() {
     price_lte: '',
     only_trashed: false,
     with_trashed: false,
+    is_loan_eligible_search: false,
   });
+  const [loanPriceUpdating, setLoanPriceUpdating] = useState<{ [key: number]: boolean }>({});
+  const [loanPriceInputs, setLoanPriceInputs] = useState<{ [key: number]: string }>({});
 
   // Map routes to nav items
   const routeMap: { [key: string]: string } = {
@@ -92,6 +97,7 @@ export default function Products() {
     if (filters.price_lte) params.append('price[lte]', filters.price_lte);
     if (filters.only_trashed) params.append('only_trashed', '');
     if (filters.with_trashed) params.append('with_trashed', '');
+    if (filters.is_loan_eligible_search) params.append('is_loan_eligible_search', '1');
     return params.toString();
   };
 
@@ -184,6 +190,7 @@ export default function Products() {
             total_quantity: product.total_quantity,
             image_paths: product.image_paths,
             is_loan_eligible: !!product.is_loan_eligible,
+            loan_price: product.loan_price || null,
           })),
       }));
       setProductMeta((prev) => ({
@@ -249,6 +256,7 @@ export default function Products() {
             total_quantity: product.total_quantity,
             image_paths: product.image_paths,
             is_loan_eligible: !!product.is_loan_eligible,
+            loan_price: product.loan_price || null,
           })),
       }));
       setProductMeta((prev) => ({
@@ -266,6 +274,58 @@ export default function Products() {
       setProductError((prev) => ({ ...prev, 0: 'Error loading products' }));
     } finally {
       setProductLoading((prev) => ({ ...prev, 0: false }));
+    }
+  };
+
+  const handleUpdateLoanPrice = async (productId: number, categoryId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token found, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    const loanPrice = loanPriceInputs[productId];
+    if (!loanPrice || isNaN(Number(loanPrice)) || Number(loanPrice) < 0) {
+      console.warn('Invalid loan price for product', productId);
+      return;
+    }
+
+    setLoanPriceUpdating((prev) => ({ ...prev, [productId]: true }));
+
+    try {
+      const formData = new FormData();
+      formData.append('_method', 'PUT');
+      formData.append('loan_price', loanPrice);
+
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/products/${productId}/update-loan-price`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.text();
+        console.warn('Loan price update failed for product', productId, res.status, errorBody);
+        throw new Error('Failed to update loan price');
+      }
+
+      // Optimistically update the loan price
+      setProductsByCategory((prev) => {
+        const products = [...(prev[categoryId] || [])];
+        const index = products.findIndex((p) => p.id === productId);
+        if (index !== -1) {
+          products[index] = { ...products[index], loan_price: loanPrice };
+        }
+        return { ...prev, [categoryId]: products };
+      });
+    } catch (e) {
+      console.warn('Error updating loan price for product', productId, e);
+    } finally {
+      setLoanPriceUpdating((prev) => ({ ...prev, [productId]: false }));
     }
   };
 
@@ -300,6 +360,12 @@ export default function Products() {
     }
   };
 
+  const handleNavClick = (route: string) => {
+    if (routeMap[pathname] !== route) {
+      setNavLoading((prev) => ({ ...prev, [route]: true }));
+    }
+  };
+
   const handleRefresh = () => {
     setError(null);
     setProductsByCategory({});
@@ -315,6 +381,7 @@ export default function Products() {
       price_lte: '',
       only_trashed: false,
       with_trashed: false,
+      is_loan_eligible_search: false,
     });
     fetchCategories();
     fetchAllProducts(1);
@@ -388,6 +455,10 @@ export default function Products() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const handleLoanPriceChange = (productId: number, value: string) => {
+    setLoanPriceInputs((prev) => ({ ...prev, [productId]: value }));
   };
 
   const handleApplyFilters = () => {
@@ -465,6 +536,21 @@ export default function Products() {
         input:disabled + .slider {
           background-color: #9ca3af;
           cursor: not-allowed;
+        }
+        .category-button {
+          min-height: 80px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 8px;
+        }
+        .category-button h2 {
+          word-break: break-word;
+          white-space: normal;
+          line-height: 1.2;
+          max-width: 100%;
         }
       `}</style>
 
@@ -574,6 +660,16 @@ export default function Products() {
                 />
                 With Trashed
               </label>
+              <label className="flex items-center text-sm font-medium text-blue-700">
+                <input
+                  type="checkbox"
+                  name="is_loan_eligible_search"
+                  checked={filters.is_loan_eligible_search}
+                  onChange={handleFilterChange}
+                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-blue-300 rounded"
+                />
+                Loan Eligible
+              </label>
             </div>
           </div>
           <div className="mt-4 flex justify-end">
@@ -622,188 +718,214 @@ export default function Products() {
       </div>
 
       {loading ? (
-        <div className="text-center text-blue-600 py-8 mx-4 sm:mx-6">
-          <span className="spinner spinner-dark mr-2" />
-          Loading categories...
-        </div>
+        <div className="text-center text-blue-600 py-8 mx-4 sm:mx-6">Loading categories...</div>
       ) : error ? (
         <div className="text-center text-red-600 py-8 mx-4 sm:mx-6">{error}</div>
       ) : (
-        <div className="mx-4 sm:mx-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-blue-900 mb-4">Categories</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={handleAllProductsClick}
+        <div className="w-full px-4 sm:px-6">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
+            <AnimatePresence>
+              <motion.button
+                key="all-products"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className={`bg-blue-600 text-white px-3 py-2 rounded-lg shadow border border-blue-300 transition-all duration-300 category-button ${
+                  selectedCategoryId === 0 ? 'bg-blue-800 shadow-lg ring-2 ring-blue-400' : ''
+                } ${productLoading[0] ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:bg-blue-700'}`}
                 disabled={productLoading[0]}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategoryId === 0
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                } ${productLoading[0] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={handleAllProductsClick}
               >
                 {productLoading[0] ? (
-                  <>
-                    <span className="spinner spinner-dark mr-2" />
-                    All Products
-                  </>
-                ) : (
-                  'All Products'
-                )}
-              </button>
-              {categories
-                .filter((category) => category.is_active)
-                .map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => handleCategoryClick(category.id)}
-                    disabled={productLoading[category.id]}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedCategoryId === category.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-blue-100 text-blue-900 hover:bg-blue-ov-200'
-                    } ${productLoading[category.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {productLoading[category.id] ? (
-                      <>
-                        <span className="spinner spinner-dark mr-2" />
-                        {category.name} ({category.products_count})
-                      </>
-                    ) : (
-                      `${category.name} (${category.products_count})`
-                    )}
-                  </button>
-                ))}
-            </div>
+                  <span className="spinner mb-2" />
+                ) : null}
+                <h2 className="text-lg font-semibold">All Products</h2>
+                <p className="text-xs">View All</p>
+              </motion.button>
+              {categories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className={`bg-white px-3 py-2 rounded-lg shadow border border-blue-100 transition-all duration-300 category-button ${
+                    selectedCategoryId === category.id ? 'bg-blue-200 ring-2 ring-blue-400' : ''
+                  } ${productLoading[category.id] ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:bg-blue-50'}`}
+                  disabled={productLoading[category.id]}
+                  onClick={() => handleCategoryClick(category.id)}
+                >
+                  {productLoading[category.id] ? (
+                    <span className="spinner-dark mb-2" />
+                  ) : null}
+                  <h2 className="text-base font-semibold text-blue-900">{category.name}</h2>
+                  <p className="text-xs text-blue-600">Products: {category.products_count}</p>
+                </motion.button>
+              ))}
+            </AnimatePresence>
           </div>
 
           {selectedCategoryId !== null && (
-            <div>
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-4 text-blue-900">
+                {selectedCategoryId === 0
+                  ? 'All Products'
+                  : `Products in ${categories.find((c) => c.id === selectedCategoryId)?.name}`}
+              </h2>
               {productLoading[selectedCategoryId] ? (
-                <div className="text-center text-blue-600 py-8">
-                  <span className="spinner spinner-dark mr-2" />
-                  Loading products...
-                </div>
+                <div className="text-center text-blue-600 py-4">Loading products...</div>
               ) : productError[selectedCategoryId] ? (
-                <div className="text-center text-red-600 py-8">{productError[selectedCategoryId]}</div>
-              ) : productsByCategory[selectedCategoryId]?.length === 0 ? (
-                <div className="text-center text-blue-600 py-8">
-                  No products found for{' '}
-                  {selectedCategoryId === 0
-                    ? 'All Products'
-                    : categories.find((c) => c.id === selectedCategoryId)?.name || 'this category'}.
-                </div>
+                <div className="text-center text-red-600 py-4">{productError[selectedCategoryId]}</div>
+              ) : !productsByCategory[selectedCategoryId] || productsByCategory[selectedCategoryId].length === 0 ? (
+                <div className="text-center text-blue-600 py-4">No active products found.</div>
               ) : (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold text-blue-900 mb-4">
-                    Products{' '}
-                    {selectedCategoryId === 0
-                      ? 'All Products'
-                      : `in ${categories.find((c) => c.id === selectedCategoryId)?.name}`}
-                  </h2>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm bg-white rounded-lg shadow border border-blue-100">
-                      <thead>
-                        <tr className="bg-blue-100">
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">ID</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Name</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Price</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Total Quantity</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Images</th>
-                          <th className="px-4 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Loan Eligible</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {productsByCategory[selectedCategoryId]?.map((product) => (
-                          <tr key={product.id}>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.id}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.name}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.price}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">{product.total_quantity}</td>
-                            <td className="px-4 py-2 border-b border-blue-200">
-                              {product.image_paths.length > 0 ? (
-                                <div className="flex space-x-2">
-                                  {product.image_paths.map((path, index) => (
-                                    <img
-                                      key={index}
-                                      src={path}
-                                      alt={`Product ${product.name} image ${index + 1}`}
-                                      className="w-12 h-12 object-cover rounded"
-                                    />
-                                  ))}
-                                </div>
-                              ) : (
-                                'No Images'
-                              )}
-                            </td>
-                            <td className="px-4 py-2 border-b border-blue-200">
+                <>
+                  <div className="flex flex-col gap-4">
+                    <AnimatePresence>
+                      {productsByCategory[selectedCategoryId].map((product) => (
+                        <motion.div
+                          key={product.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.3 }}
+                          className="bg-white p-4 rounded-lg shadow border border-blue-100 flex items-center gap-4 hover:shadow-lg hover:scale-[1.01] transition-all duration-300 sm:flex-row flex-col"
+                        >
+                          {product.image_paths[0] ? (
+                            <img
+                              src={product.image_paths[0]}
+                              alt={product.name}
+                              className="w-32 h-32 object-cover rounded-md"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.png'; // Fallback image
+                              }}
+                            />
+                          ) : (
+                            <div className="w-32 h-32 bg-gray-200 rounded-md flex items-center justify-center">
+                              <span className="text-gray-500">No image</span>
+                            </div>
+                          )}
+                          <div className="flex-1 flex flex-col justify-between">
+                            <div>
+                              <h3 className="text-base font-semibold text-blue-900">{product.name}</h3>
+                              <p className="text-sm text-blue-600">Price: {product.price} ETB</p>
+                              <p className="text-sm text-blue-600">In Stock: {product.total_quantity}</p>
+                              <p className="text-sm text-blue-600">
+                                Loan Price: {product.loan_price ? `${product.loan_price} ETB` : 'Not set'}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-sm text-blue-600">
+                                Loan Eligible: {product.is_loan_eligible ? 'Yes' : 'No'}
+                              </p>
                               <label className="toggle-switch">
                                 <input
                                   type="checkbox"
                                   checked={product.is_loan_eligible}
-                                  onChange={() => handleToggleEligibility(product.id, selectedCategoryId)}
                                   disabled={toggling[product.id]}
+                                  onChange={() => handleToggleEligibility(product.id, selectedCategoryId)}
                                 />
                                 <span className="slider"></span>
                               </label>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                            <div className="mt-2">
+                              <label className="block text-sm font-medium text-blue-700">Update Loan Price</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={loanPriceInputs[product.id] || ''}
+                                  onChange={(e) => handleLoanPriceChange(product.id, e.target.value)}
+                                  min="0"
+                                  className="w-24 p-2 border border-blue-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="e.g., 3876"
+                                />
+                                <button
+                                  onClick={() => handleUpdateLoanPrice(product.id, selectedCategoryId)}
+                                  disabled={loanPriceUpdating[product.id] || !loanPriceInputs[product.id]}
+                                  className={`flex items-center px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                    loanPriceUpdating[product.id] || !loanPriceInputs[product.id]
+                                      ? 'bg-blue-900 text-white cursor-not-allowed'
+                                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                                  }`}
+                                >
+                                  {loanPriceUpdating[product.id] ? (
+                                    <>
+                                      <span className="spinner mr-2" />
+                                      Updating...
+                                    </>
+                                  ) : (
+                                    'Update'
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                   {productMeta[selectedCategoryId] && (
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="text-sm text-blue-600">
-                        Showing {productMeta[selectedCategoryId].from} to {productMeta[selectedCategoryId].to} of{' '}
-                        {productMeta[selectedCategoryId].total} products
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, 1)}
-                          disabled={productMeta[selectedCategoryId].current_page === 1}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          First
-                        </button>
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page - 1)}
-                          disabled={productMeta[selectedCategoryId].current_page === 1}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          Prev
-                        </button>
-                        {[...Array(productMeta[selectedCategoryId].last_page).keys()]
-                          .filter((num) => Math.abs(num + 1 - productMeta[selectedCategoryId].current_page) <= 2 || num === 0 || num === productMeta[selectedCategoryId].last_page - 1)
-                          .map((num) => (
-                            <button
-                              key={num + 1}
-                              onClick={() => handlePageChange(selectedCategoryId, num + 1)}
-                              className={`px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors ${
-                                num + 1 === productMeta[selectedCategoryId].current_page ? 'bg-blue-600 text-white' : 'bg-blue-100'
-                              }`}
-                            >
-                              {num + 1}
-                            </button>
-                          ))}
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page + 1)}
-                          disabled={productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          Next
-                        </button>
-                        <button
-                          onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].last_page)}
-                          disabled={productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page}
-                          className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
-                        >
-                          Last
-                        </button>
-                      </div>
+                    <div className="mt-4 flex justify-center items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handlePageChange(selectedCategoryId, 1)}
+                        disabled={productMeta[selectedCategoryId].current_page === 1}
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        First
+                      </button>
+                      <button
+                        onClick={() =>
+                          handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page - 1)
+                        }
+                        disabled={productMeta[selectedCategoryId].current_page === 1}
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        Prev
+                      </button>
+                      {[...Array(productMeta[selectedCategoryId].last_page).keys()]
+                        .filter(
+                          (num) =>
+                            Math.abs(num + 1 - productMeta[selectedCategoryId].current_page) <= 2 ||
+                            num === 0 ||
+                            num === productMeta[selectedCategoryId].last_page - 1
+                        )
+                        .map((num) => (
+                          <button
+                            key={num + 1}
+                            onClick={() => handlePageChange(selectedCategoryId, num + 1)}
+                            className={`px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-200 transition-colors ${
+                              num + 1 === productMeta[selectedCategoryId].current_page
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-blue-100'
+                            }`}
+                          >
+                            {num + 1}
+                          </button>
+                        ))}
+                      <button
+                        onClick={() =>
+                          handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].current_page + 1)
+                        }
+                        disabled={
+                          productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page
+                        }
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        Next
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(selectedCategoryId, productMeta[selectedCategoryId].last_page)}
+                        disabled={
+                          productMeta[selectedCategoryId].current_page === productMeta[selectedCategoryId].last_page
+                        }
+                        className="px-3 py-1 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                      >
+                        Last
+                      </button>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           )}

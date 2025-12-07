@@ -1,27 +1,51 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import NavigationBar from './components/NavigationBar';
 
+interface FaydaCustomer {
+  id: number;
+  user_id: number;
+  name: string;
+  email: string | null;
+  sub: string;
+  picture: string | null;
+  picture_path: string;
+  phone_number: string;
+  birthdate: string;
+  residence_status: string | null;
+  gender: string;
+  address: {
+    zone: string;
+    region: string;
+    woreda: string;
+  };
+  nationality: string | null;
+  is_verified: boolean | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 interface User {
   id: number;
   user_name: string | null;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   phone_number: string;
   is_verified: number;
   email_verified_at: string | null;
   firebase_token: string | null;
-  firebase_id: string;
+  firebase_id: string | null;
   cbe_birr_plus_token: string | null;
   image: string | null;
   cover_photo: string | null;
   provider_id: string | null;
   provider: string | null;
-  corporate_id: string | null;
+  corporate_id: number | null;
   wallet_balance: number;
   bypass_product_quantity_restriction: number;
   status: number;
@@ -44,13 +68,14 @@ interface User {
     updated_at: string;
     deleted_at: string | null;
   };
+  fayda_customers: FaydaCustomer[];
 }
 
 interface LoanTransaction {
   id: number;
   loan_transaction_code: string | null;
   loan_id: number;
-  order_id: string | null;
+  order_id: number | null;
   amount: string;
   penalty: string;
   type: string;
@@ -59,7 +84,7 @@ interface LoanTransaction {
   due_date: string | null;
   payment_method: string | null;
   is_notified: number;
-  penalty_id: string | null;
+  penalty_id: number | null;
   request_payload: string | null;
   transaction_id_banks: string | null;
   response_payload: string | null;
@@ -77,12 +102,12 @@ interface Loan {
   loan_amount: string;
   loan_cap: string | null;
   is_approved: number;
-  is_all_amount_spent: string | null;
+  is_all_amount_spent: boolean | null;
   status: string;
   payment_completed_at_date: string | null;
-  repayment_rule: string | null;
-  description: string;
-  penalty_id: string | null;
+  repayment_rule: string | { term_months: string } | null;
+  description: string | null;
+  penalty_id: number | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -99,25 +124,32 @@ export default function Loans() {
   const [loading, setLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: Set<string> }>({});
   const [approving, setApproving] = useState<{ [key: number]: boolean }>({});
+  const [deleting, setDeleting] = useState<{ [key: number]: boolean }>({});
+  const [updatingDueDate, setUpdatingDueDate] = useState<{ [key: number]: boolean }>({});
   const [approveForm, setApproveForm] = useState<{ [key: number]: { loan_amount: string; term_months: string; description: string; loan_cap: string } }>({});
+  const [dueDateForm, setDueDateForm] = useState<{ [key: number]: string }>({});
+  const [editingTransaction, setEditingTransaction] = useState<number | null>(null);
+  const transactionsRef = useRef<{ [key: number]: HTMLTableRowElement }>({});
   const [paginateCount, setPaginateCount] = useState(10);
   const [userIdSearch, setUserIdSearch] = useState('');
   const [loanAmountSearch, setLoanAmountSearch] = useState('');
   const [isApprovedSearch, setIsApprovedSearch] = useState('');
   const [statusSearch, setStatusSearch] = useState('');
   const [descriptionSearch, setDescriptionSearch] = useState('');
+  const [phoneNumberSearch, setPhoneNumberSearch] = useState('');
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [navLoading, setNavLoading] = useState<{ [key: string]: boolean }>({
     loans: false,
     loan_users: false,
     products: false,
+    users: false,
   });
 
-  // Map routes to nav items
   const routeMap: { [key: string]: string } = {
     '/': 'loans',
     '/loan_users': 'loan_users',
     '/products': 'products',
+    '/users': 'users',
   };
   const currentRoute = routeMap[pathname] || '';
 
@@ -131,13 +163,14 @@ export default function Loans() {
 
     setLoading(true);
     try {
-      let url = `https://api.seregelagebeya.com/api/v1/loans?page=${page}&per_page=${paginateCount}`;
+      let url = `https://api.seregelagebeya.com/api/v1/loans?page=${page}&paginate=${paginateCount}`;
       
       if (userIdSearch) url += `&user_id_search=${encodeURIComponent(userIdSearch)}`;
       if (loanAmountSearch) url += `&loan_amount_search=${encodeURIComponent(loanAmountSearch)}`;
       if (isApprovedSearch) url += `&is_approved_search=${encodeURIComponent(isApprovedSearch)}`;
       if (statusSearch) url += `&status_search=${encodeURIComponent(statusSearch)}`;
       if (descriptionSearch) url += `&description_search=${encodeURIComponent(descriptionSearch)}`;
+      if (phoneNumberSearch) url += `&phone_number_search=${encodeURIComponent(phoneNumberSearch)}`;
 
       const res = await fetch(url, {
         headers: {
@@ -172,7 +205,135 @@ export default function Loans() {
     } finally {
       setLoading(false);
     }
-  }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, router]);
+  }, [paginateCount, userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
+
+  const handleUpdateDueDate = async (loanId: number, transactionId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    const dueDateValue = dueDateForm[transactionId];
+    if (!dueDateValue) {
+      alert('Please enter a due date');
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to edit due date for Transaction ID: ${transactionId}?\n\nNew Due Date: ${dueDateValue}`);
+    if (!confirmed) {
+      return;
+    }
+
+    setUpdatingDueDate(prev => ({ ...prev, [transactionId]: true }));
+
+    try {
+      const form = new FormData();
+      form.append('_method', 'PUT');
+      form.append('due_date', dueDateValue);
+
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/loan-transactions/${transactionId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: form,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorMessage = 'Failed to update due date';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch {
+          errorMessage = errorText.trim();
+        }
+        alert(errorMessage);
+        return;
+      }
+
+      const json = await res.json();
+      const updatedTransaction = json.data;
+
+      setLoans(prev =>
+        prev.map(loan =>
+          loan.id === loanId
+            ? {
+                ...loan,
+                loan_transactions: loan.loan_transactions.map(t =>
+                  t.id === transactionId ? { ...t, ...updatedTransaction } : t
+                ),
+              }
+            : loan
+        )
+      );
+
+      setDueDateForm(prev => {
+        const { [transactionId]: _, ...rest } = prev;
+        return rest;
+      });
+      setEditingTransaction(null);
+
+      alert('Due date updated successfully!');
+
+      setTimeout(() => {
+        transactionsRef.current[transactionId]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
+
+    } catch (e) {
+      console.warn('Error updating due date:', e);
+      alert('Error updating due date');
+    } finally {
+      setUpdatingDueDate(prev => ({ ...prev, [transactionId]: false }));
+    }
+  };
+
+  const handleDelete = async (loanId: number) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token found, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    setDeleting(prev => ({ ...prev, [loanId]: true }));
+
+    try {
+      const res = await fetch(`https://api.seregelagebeya.com/api/v1/loans/${loanId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.status === 204) {
+        alert('Loan deleted successfully');
+        fetchData(currentPage);
+        return;
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Unauthorized access - redirecting to login:', { status: res.status });
+        router.push('/login');
+        return;
+      }
+
+      const json = await res.json();
+      console.warn('Loan deletion failed:', res.status, json);
+      alert(json.message || 'Failed to delete loan');
+    } catch (e) {
+      console.warn('Error deleting loan:', e);
+      alert('Error deleting loan');
+    } finally {
+      setDeleting(prev => ({ ...prev, [loanId]: false }));
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -189,7 +350,7 @@ export default function Loans() {
     return () => {
       clearTimeout(handler);
     };
-  }, [userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, router]);
+  }, [userIdSearch, loanAmountSearch, isApprovedSearch, statusSearch, descriptionSearch, phoneNumberSearch, router]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -241,11 +402,20 @@ export default function Loans() {
     setIsApprovedSearch('');
     setStatusSearch('');
     setDescriptionSearch('');
+    setPhoneNumberSearch('');
     setSearchTrigger(prev => prev + 1);
   };
 
   const handleApproveToggle = (loanId: number) => {
     toggleSection(loanId, 'approve');
+  };
+
+  const handleDueDateEditToggle = (transactionId: number, currentDueDate: string | null, loanId: number) => {
+    setEditingTransaction(transactionId);
+    setDueDateForm(prev => ({
+      ...prev,
+      [transactionId]: currentDueDate ? currentDueDate.split('T')[0] : ''
+    }));
   };
 
   const handleApproveFormChange = (loanId: number, field: string, value: string) => {
@@ -258,6 +428,13 @@ export default function Loans() {
     }));
   };
 
+  const handleDueDateFormChange = (transactionId: number, value: string) => {
+    setDueDateForm(prev => ({
+      ...prev,
+      [transactionId]: value
+    }));
+  };
+
   const handleApprove = async (loanId: number) => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -266,7 +443,7 @@ export default function Loans() {
     }
 
     const formData = approveForm[loanId];
-    if (!formData || !formData.loan_amount || !formData.term_months || !formData.description || !formData.loan_cap) {
+    if (!formData || !formData.loan_amount || !formData.term_months) {
       alert('Please fill all approval fields');
       return;
     }
@@ -281,7 +458,7 @@ export default function Loans() {
       return;
     }
 
-    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) <= 0) {
+    if (isNaN(Number(formData.loan_cap)) || Number(formData.loan_cap) < 0) {
       alert('Loan cap must be a positive number');
       return;
     }
@@ -315,7 +492,6 @@ export default function Loans() {
       const json = await res.json();
       const updatedLoan = json.data;
 
-      // Update the loan in the state
       setLoans(prev =>
         prev.map(loan =>
           loan.id === loanId
@@ -326,6 +502,7 @@ export default function Loans() {
                   ...loan.user,
                   ...updatedLoan.user,
                   loan_user: updatedLoan.user?.loan_user || loan.user.loan_user,
+                  fayda_customers: updatedLoan.user?.fayda_customers || loan.user.fayda_customers,
                 },
                 loan_transactions: updatedLoan.loan_transactions || loan.loan_transactions,
               }
@@ -333,7 +510,6 @@ export default function Loans() {
         )
       );
 
-      // Clear form and collapse section
       setApproveForm(prev => {
         const { [loanId]: _, ...rest } = prev;
         return rest;
@@ -352,14 +528,164 @@ export default function Loans() {
   const handleRefresh = () => {
     setLoans([]);
     setMeta(null);
+    setExpandedSections({});
     fetchData(currentPage);
   };
 
-  const renderValue = (value: any) => (value === null || value === undefined ? 'N/A' : value);
+  const renderValue = (value: any) => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'object' && 'term_months' in value) {
+      return `${value.term_months} month${Number(value.term_months) !== 1 ? 's' : ''}`;
+    }
+    return value;
+  };
+
+  const getTransactionClass = (transaction: LoanTransaction) => {
+    if (transaction.type === 'LOAN_REPAYMENT') {
+      if (transaction.status === 'NOT_PAID' && transaction.paid_date === null) {
+        return 'loan-transaction-unpaid';
+      }
+      return 'loan-transaction-paid';
+    }
+    return 'loan-transaction-normal';
+  };
+
+  const renderDueDateCell = (loanId: number, transaction: LoanTransaction) => {
+    const isEditing = editingTransaction === transaction.id;
+    const isUpdating = updatingDueDate[transaction.id];
+
+    // const displayDate = transaction.due_date ? transaction.due_date.split('T')[0] : 'N/A';   // date format for due_date = YYYY-MM-DD
+    //
+    //
+    const displayDate = transaction.due_date                                                    // date format for due_date = MM/DD/YYYY     
+    ? new Date(transaction.due_date).toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+      })
+    : 'N/A';
+
+
+
+    if (isEditing) {
+      return (
+        <td className="px-3 py-2 border-b border-blue-200">
+          <div className="flex items-center space-x-2">
+            <input
+              type="date"
+              value={dueDateForm[transaction.id] || ''}
+              onChange={(e) => handleDueDateFormChange(transaction.id, e.target.value)}
+              className="bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={() => handleUpdateDueDate(loanId, transaction.id)}
+              disabled={isUpdating || !dueDateForm[transaction.id]}
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                isUpdating
+                  ? 'bg-blue-900 text-white cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {isUpdating ? <span className="spinner w-3 h-3" /> : '✓'}
+            </button>
+            <button
+              onClick={() => {
+                setEditingTransaction(null);
+                setDueDateForm(prev => {
+                  const { [transaction.id]: _, ...rest } = prev;
+                  return rest;
+                });
+              }}
+              className="px-2 py-1 rounded text-xs font-medium bg-red-200 hover:bg-red-300 text-red-700"
+            >
+              ✕
+            </button>
+          </div>
+        </td>
+      );
+    }
+
+    return (
+      <td className="px-3 py-2 border-b border-blue-200">
+        <div className="flex items-center space-x-2">
+          <span>{displayDate}</span>
+          <button
+            onClick={() => handleDueDateEditToggle(transaction.id, transaction.due_date, loanId)}
+            className="px-2 py-1 rounded text-xs font-medium bg-blue-200 hover:bg-blue-300 text-blue-700"
+            title="Edit Due Date"
+          >
+            ✏️
+          </button>
+        </div>
+      </td>
+    );
+  };
 
   return (
     <main className="min-h-screen bg-blue-50 text-gray-900 p-4 sm:p-6">
-      {/* Navigation Bar */}
+      <style jsx>{`
+        .spinner {
+          display: inline-block;
+          width: 1.5rem;
+          height: 1.5rem;
+          border: 3px solid rgba(255, 255, 255, 0.3);
+          border-top: 3px solid #ffffff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        .spinner.w-3.h-3 {
+          width: 0.75rem;
+          height: 0.75rem;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .table-container {
+          overflow-x: auto;
+          width: 100%;
+        }
+        .table-container table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .table-container th,
+        .table-container td {
+          padding: 8px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb;
+          white-space: nowrap;
+        }
+        .table-container th {
+          background-color: #f3f4f6;
+          font-weight: 600;
+          color: #1e40af;
+        }
+        .table-container td {
+          color: #1e40af;
+        }
+        .loan-transaction-unpaid {
+          background-color: #fee2e2;
+          color: #b91c1c !important;
+        }
+        .loan-transaction-unpaid td {
+          color: #b91c1c !important;
+        }
+        .loan-transaction-paid {
+          background-color: #dcfce7;
+          color: #15803d !important;
+        }
+        .loan-transaction-paid td {
+          color: #15803d !important;
+        }
+        .loan-transaction-normal {
+          background-color: #eff6ff;
+          color: #1e40af !important;
+        }
+        .loan-transaction-normal td {
+          color: #1e40af !important;
+        }
+      `}</style>
+
       <NavigationBar
         navLoading={navLoading}
         setNavLoading={setNavLoading}
@@ -371,7 +697,6 @@ export default function Loans() {
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-900">Loans Dashboard</h1>
       </header>
 
-      {/* Refresh Button */}
       <div className="mb-4 flex justify-end">
         <button
           onClick={handleRefresh}
@@ -393,7 +718,6 @@ export default function Loans() {
         </button>
       </div>
 
-      {/* Search Form */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow border border-blue-100">
         <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
@@ -456,6 +780,17 @@ export default function Loans() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-blue-700 mb-1">Phone Number</label>
+            <input
+              type="text"
+              value={phoneNumberSearch}
+              onChange={(e) => setPhoneNumberSearch(e.target.value)}
+              className="w-full bg-blue-50 border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter phone number"
+            />
+          </div>
+
           <div className="col-span-full flex justify-end space-x-2 mt-2">
             <button
               type="submit"
@@ -508,7 +843,6 @@ export default function Loans() {
             return (
               <div key={loan.id} className="bg-white p-4 sm:p-6 rounded-lg shadow border border-blue-100">
                 <div className="w-full min-w-0">
-                  {/* Approve Button and Form */}
                   <div className="mb-4 flex justify-end items-center space-x-2">
                     <button
                       onClick={() => handleApproveToggle(loan.id)}
@@ -532,9 +866,30 @@ export default function Loans() {
                         'Approve Loan'
                       )}
                     </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete loan with ID ${loan.id}?`)) {
+                          handleDelete(loan.id);
+                        }
+                      }}
+                      disabled={deleting[loan.id]}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                        deleting[loan.id]
+                          ? 'bg-red-900 text-white cursor-not-allowed'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      {deleting[loan.id] ? (
+                        <>
+                          <span className="spinner mr-2" />
+                          Deleting...
+                        </>
+                      ) : (
+                        'Delete Loan'
+                      )}
+                    </button>
                   </div>
 
-                  {/* Approve Form (Collapsible) */}
                   <AnimatePresence>
                     {sections.has('approve') && !loan.is_approved && (
                       <motion.div
@@ -624,78 +979,249 @@ export default function Loans() {
                     )}
                   </AnimatePresence>
 
-                  {/* Loan Details Section (Always Visible) */}
                   <div className="mb-6">
-                    <h2 className="text-lg font-semibold text-blue-900 mb-2">Loan Details</h2>
+                    <h2 className="text-lg font-semibold text-blue-900 mb-2">User Summary</h2>
                     <div className="overflow-x-auto">
                       <div className="inline-block min-w-full align-middle">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm border border-blue-200 rounded-lg p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm border border-blue-200 rounded-lg p-4">
                           <div>
-                            <div className="font-semibold text-blue-700">Loan ID</div>
-                            <div>{renderValue(loan.id)}</div>
+                            <div className="font-semibold text-blue-700">First Name</div>
+                            <div className="text-1e40af">{renderValue(loan.user.first_name)}</div>
                           </div>
                           <div>
-                            <div className="font-semibold text-blue-700">Loan Code</div>
-                            <div>{renderValue(loan.loan_code)}</div>
+                            <div className="font-semibold text-blue-700">Last Name</div>
+                            <div className="text-1e40af">{renderValue(loan.user.last_name)}</div>
                           </div>
                           <div>
-                            <div className="font-semibold text-blue-700">Loan Amount</div>
-                            <div>{renderValue(loan.loan_amount)}</div>
+                            <div className="font-semibold text-blue-700">Email</div>
+                            <div className="text-1e40af">{renderValue(loan.user.email)}</div>
                           </div>
                           <div>
-                            <div className="font-semibold text-blue-700">Loan Cap</div>
-                            <div>{renderValue(loan.loan_cap)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Is Approved</div>
-                            <div>{loan.is_approved ? 'Yes' : 'No'}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Is All Amount Spent</div>
-                            <div>{renderValue(loan.is_all_amount_spent)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Status</div>
-                            <div>{renderValue(loan.status)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Payment Completed At</div>
-                            <div>{renderValue(loan.payment_completed_at_date)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Repayment Rule</div>
-                            <div>{renderValue(loan.repayment_rule)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Description</div>
-                            <div>{renderValue(loan.description)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Penalty ID</div>
-                            <div>{renderValue(loan.penalty_id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">User ID</div>
-                            <div>{renderValue(loan.user_id)}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Created At</div>
-                            <div>{renderValue(new Date(loan.created_at).toLocaleString())}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Updated At</div>
-                            <div>{renderValue(new Date(loan.updated_at).toLocaleString())}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-blue-700">Deleted At</div>
-                            <div>{renderValue(loan.deleted_at)}</div>
+                            <div className="font-semibold text-blue-700">Phone Number</div>
+                            <div className="text-1e40af">{renderValue(loan.user.phone_number)}</div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* User Details Section (Collapsible) */}
+                  <div className="mb-6">
+                    {/* === NEW: Status Badge next to "Loan Details" title === */}
+                    {/* === NEW: Status Badge + Title in Flex === */}
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="text-lg font-semibold text-blue-900">Loan Details</h2>
+
+                      <div
+                        className={`
+                          px-4 py-2 rounded-full font-bold text-sm tracking-wide shadow-md border
+                          ${loan.status === 'PAYMENT_NOT_COMPLETED'
+                            ? 'bg-red-100 text-red-800 border-red-400'
+                            : loan.status === 'PAYMENT_COMPLETED'
+                            ? 'bg-green-100 text-green-800 border-green-400'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }
+                        `}
+                      >
+                        {renderValue(loan.status)}
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm border border-blue-200 rounded-lg p-4">
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan ID</div>
+                            <div className="text-1e40af">{renderValue(loan.id)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan Code</div>
+                            <div className="text-1e40af">{renderValue(loan.loan_code)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan Amount</div>
+                            <div className="text-1e40af">{renderValue(loan.loan_amount)} ETB</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Loan Cap</div>
+                            <div className="text-1e40af">{renderValue(loan.loan_cap)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Is Approved</div>
+                            <div className="text-1e40af">{loan.is_approved ? 'Yes' : 'No'}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Is All Amount Spent</div>
+                            <div className="text-1e40af">{loan.is_all_amount_spent ? 'Yes' : 'No'}</div>
+                          </div>
+                          {/* <div>
+                            <div>
+                              <div className={`
+                                font-semibold
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED' ? 'text-red-600' :
+                                  loan.status === 'PAYMENT_COMPLETED' ? 'text-green-600' :
+                                  'text-blue-700'}
+                              `}>
+                                Status
+                              </div>
+                              <div className={`
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED' ? 'text-red-600' :
+                                  loan.status === 'PAYMENT_COMPLETED' ? 'text-green-600' :
+                                  'text-1e40af'}
+                              `}>
+                                {renderValue(loan.status)}
+                              </div>
+                            </div>
+                          </div> */}
+
+                          <div className="relative">
+                            <div
+                              className={`
+                                font-semibold
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED' ? 'text-red-700' :
+                                  loan.status === 'PAYMENT_COMPLETED' ? 'text-green-700' :
+                                  'text-blue-700'}
+                              `}
+                            >
+                              Status
+                            </div>
+                            <div
+                              className={`
+                                px-3 py-1.5 rounded-md font-medium text-sm inline-block min-w-[160px] text-center
+                                ${loan.status === 'PAYMENT_NOT_COMPLETED'
+                                  ? 'bg-red-100 text-red-800 border border-red-300 shadow-sm'
+                                  : loan.status === 'PAYMENT_COMPLETED'
+                                  ? 'bg-green-100 text-green-800 border border-green-300 shadow-sm'
+                                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                }
+                              `}
+                            >
+                              {renderValue(loan.status)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Payment Completed At</div>
+                            <div className="text-1e40af">{renderValue(loan.payment_completed_at_date)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Repayment Rule</div>
+                            <div className="text-1e40af">{renderValue(loan.repayment_rule)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Description</div>
+                            <div className="text-1e40af">{renderValue(loan.description)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Penalty ID</div>
+                            <div className="text-1e40af">{renderValue(loan.penalty_id)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">User ID</div>
+                            <div className="text-1e40af">{renderValue(loan.user_id)}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Created At</div>
+                            <div className="text-1e40af">{renderValue(new Date(loan.created_at).toLocaleString())}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Updated At</div>
+                            <div className="text-1e40af">{renderValue(new Date(loan.updated_at).toLocaleString())}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-700">Deleted At</div>
+                            <div className="text-1e40af">{renderValue(loan.deleted_at)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <div 
+                      className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
+                      onClick={() => toggleSection(loan.id, 'fayda_customers')}
+                    >
+                      {sections.has('fayda_customers') ? '▲ Hide Fayda Customers' : '▼ Show Fayda Customers'}
+                    </div>
+                    <AnimatePresence>
+                      {sections.has('fayda_customers') && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mb-6 bg-blue-50 p-4 rounded-md border border-blue-200">
+                            <h4 className="text-sm font-semibold text-blue-900 mb-2">Fayda Customers</h4>
+                            {loan.user.fayda_customers.length === 0 ? (
+                              <p className="text-sm text-blue-600">No fayda customers found.</p>
+                            ) : (
+                              <div className="table-container">
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th>ID</th>
+                                      <th>Name</th>
+                                      <th>Email</th>
+                                      <th>Sub</th>
+                                      <th>Phone Number</th>
+                                      <th>Birthdate</th>
+                                      <th>Residence Status</th>
+                                      <th>Gender</th>
+                                      <th>Address</th>
+                                      <th>Nationality</th>
+                                      <th>Is Verified</th>
+                                      <th>Created At</th>
+                                      <th>Updated At</th>
+                                      <th>Deleted At</th>
+                                      <th>Picture</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {loan.user.fayda_customers.map((fayda) => (
+                                      <tr key={fayda.id}>
+                                        <td>{renderValue(fayda.id)}</td>
+                                        <td>{renderValue(fayda.name)}</td>
+                                        <td>{renderValue(fayda.email)}</td>
+                                        <td>{renderValue(fayda.sub)}</td>
+                                        <td>{renderValue(fayda.phone_number)}</td>
+                                        <td>{renderValue(fayda.birthdate)}</td>
+                                        <td>{renderValue(fayda.residence_status)}</td>
+                                        <td>{renderValue(fayda.gender)}</td>
+                                        <td>
+                                          {fayda.address
+                                            ? `${fayda.address.region}, ${fayda.address.zone}, ${fayda.address.woreda}`
+                                            : 'N/A'}
+                                        </td>
+                                        <td>{renderValue(fayda.nationality)}</td>
+                                        <td>{fayda.is_verified ? 'Yes' : 'No'}</td>
+                                        <td>{renderValue(new Date(fayda.created_at).toLocaleString())}</td>
+                                        <td>{renderValue(new Date(fayda.updated_at).toLocaleString())}</td>
+                                        <td>{renderValue(fayda.deleted_at)}</td>
+                                        <td>
+                                          {fayda.picture_path ? (
+                                            <img
+                                              src={`https://api.seregelagebeya.com/${fayda.picture_path}`}
+                                              alt={fayda.name}
+                                              className="w-16 h-16 object-cover rounded-md"
+                                              onError={(e) => {
+                                                e.currentTarget.src = '/placeholder.png';
+                                              }}
+                                            />
+                                          ) : (
+                                            'N/A'
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
                   <div className="mb-4">
                     <div 
                       className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
@@ -752,7 +1278,7 @@ export default function Loans() {
                                 </div>
                                 <div>
                                   <div className="font-semibold text-blue-700">Wallet Balance</div>
-                                  <div>{renderValue(loan.user.wallet_balance)}</div>
+                                  <div>{renderValue(loan.user.wallet_balance)} ETB</div>
                                 </div>
                                 <div>
                                   <div className="font-semibold text-blue-700">Bypass Quantity Restriction</div>
@@ -818,7 +1344,7 @@ export default function Loans() {
                                     </div>
                                     <div>
                                       <div className="font-semibold text-blue-700">Loan Balance</div>
-                                      <div>{renderValue(loan.user.loan_user.loan_balance)}</div>
+                                      <div>{renderValue(loan.user.loan_user.loan_balance)} ETB</div>
                                     </div>
                                     <div>
                                       <div className="font-semibold text-blue-700">Loan Cap</div>
@@ -854,7 +1380,6 @@ export default function Loans() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Loan Transactions Section (Collapsible) */}
                   <div>
                     <div 
                       className="text-sm text-blue-600 cursor-pointer hover:underline font-semibold mb-2"
@@ -870,7 +1395,7 @@ export default function Loans() {
                           exit={{ opacity: 0, height: 0 }}
                           className="overflow-hidden"
                         >
-                          <div className="overflow-x-auto">
+                          <div className="table-container">
                             <table className="min-w-full text-sm bg-blue-50 rounded-lg border border-blue-200">
                               <thead>
                                 <tr className="bg-blue-100">
@@ -887,11 +1412,6 @@ export default function Loans() {
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Payment Method</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Is Notified</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Penalty ID</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Request Payload</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Transaction ID Banks</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Response Payload</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank Payment Logic Data</th>
-                                  <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Bank To Pay URL</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Created At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Updated At</th>
                                   <th className="px-3 py-2 text-left border-b border-blue-200 font-semibold text-blue-700">Deleted At</th>
@@ -899,25 +1419,24 @@ export default function Loans() {
                               </thead>
                               <tbody>
                                 {loan.loan_transactions.map((transaction) => (
-                                  <tr key={transaction.id}>
+                                  <tr
+                                    key={transaction.id}
+                                    className={getTransactionClass(transaction)}
+                                    ref={el => { if (el) transactionsRef.current[transaction.id] = el }}
+                                  >
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.id)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_transaction_code)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.loan_id)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.order_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)}</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.amount)} ETB</td>
+                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty)} ETB</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.type)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.status)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.paid_date ? new Date(transaction.paid_date).toLocaleString() : 'N/A')}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.due_date ? new Date(transaction.due_date).toLocaleString() : 'N/A')}</td>
+                                    {renderDueDateCell(loan.id, transaction)}
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.payment_method)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{transaction.is_notified ? 'Yes' : 'No'}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.penalty_id)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.request_payload)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.transaction_id_banks)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.response_payload)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_payment_logic_data)}</td>
-                                    <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.bank_to_pay_url)}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.created_at).toLocaleString())}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(new Date(transaction.updated_at).toLocaleString())}</td>
                                     <td className="px-3 py-2 border-b border-blue-200">{renderValue(transaction.deleted_at)}</td>
@@ -935,7 +1454,6 @@ export default function Loans() {
             );
           })}
 
-          {/* Pagination */}
           {meta && (
             <div className="mt-8 flex justify-center items-center gap-2 flex-wrap">
               <button
