@@ -47,7 +47,7 @@ export default function NavigationBar({
     { key: "reports", label: "Reports", route: "/reports/excel", requiredPermission: "Finance Management" },
     { key: "paid_loan_transactions", label: "Loan Transactions [Paid]", route: "/loanTransactions", requiredPermission: "Finance Management" },
     { key: "completed_loans", label: "Loans [PAYMENT COMPLETED]", route: "/completedLoans", requiredPermission: "Finance Management" },
-    { key: "payment_methods", label: "Payment Methods", route: "/payment_methods", requiredPermission: "Loan Management" },
+    { key: "payment_methods", label: "Payment Methods", route: "/payment_methods", requiredPermission: "Payment Method Management" },
   ];
 
   const handleNavClick = (route: string, key: string) => {
