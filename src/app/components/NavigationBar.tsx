@@ -47,6 +47,7 @@ export default function NavigationBar({
     { key: "reports", label: "Reports", route: "/reports/excel", requiredPermission: "Finance Management" },
     { key: "paid_loan_transactions", label: "Loan Transactions [Paid]", route: "/loanTransactions", requiredPermission: "Finance Management" },
     { key: "completed_loans", label: "Loans [PAYMENT COMPLETED]", route: "/completedLoans", requiredPermission: "Finance Management" },
+    { key: "payment_methods", label: "Payment Methods", route: "/payment_methods", requiredPermission: "Loan Management" },
   ];
 
   const handleNavClick = (route: string, key: string) => {
@@ -70,8 +71,8 @@ export default function NavigationBar({
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      <nav className="bg-blue-900 text-white p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+      <nav className="bg-blue-900 text-white p-4 w-full">
+        <div className="max-w-7xl mx-auto flex justify-between items-center gap-x-8">
           <h1 className="text-xl font-bold">Seregela Gebeya</h1>
 
           <div className="flex space-x-4">
@@ -104,6 +105,62 @@ export default function NavigationBar({
           </div>
         </div>
       </nav>
+
+
+
+
+
+
+      {/* <nav className="bg-blue-900 text-white p-4 w-full">
+        <div className="max-w-7xl mx-auto flex items-center justify-between"> */}
+          {/* Logo */}
+          {/* <div className="flex-shrink-0">
+            <h1 className="text-xl font-bold">Seregela Gebeya</h1>
+          </div> */}
+
+          {/* Centered Navigation */}
+          {/* <div className="flex-1 flex justify-center">
+            <div className="flex space-x-2">
+              {navItems
+                .filter(i => hasPermission(i.requiredPermission))
+                .map(({ key, label, route }) => {
+                  const active = currentRoute === key;
+                  const loading = navLoading[key];
+
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleNavClick(route, key)}
+                      disabled={loading}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                        active 
+                          ? "bg-blue-600 shadow-sm" 
+                          : "bg-blue-800 hover:bg-blue-700"
+                      } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      {loading ? (
+                        <>
+                          <span className="spinner mr-2" />
+                          {label}
+                        </>
+                      ) : (
+                        label
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          </div> */}
+
+          {/* Spacer for balance */}
+          {/* <div className="flex-shrink-0 w-32" />
+        </div>
+      </nav> */}
+
+
+
+      
+
     </>
   );
 }

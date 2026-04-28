@@ -204,6 +204,7 @@ const PROTECTED_ROUTES: Record<string, string> = {
   '/overdue_loans': 'Loan Management',
   '/loanTransactions': 'Finance Management',
   '/completedLoans': 'Finance Management',
+  '/payment_methods': 'Payment Method Management',
 };
 function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
