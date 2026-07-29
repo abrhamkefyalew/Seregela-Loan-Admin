@@ -24,6 +24,9 @@ export default function ReportsExcel() {
   const [reportType, setReportType] = useState('');
   const [downloading, setDownloading] = useState(false);
 
+  const [startDateGeneral, setStartDateGeneral] = useState('');
+  const [endDateGeneral, setEndDateGeneral] = useState('');
+
   // ==================== LOAN-ONLY REPORT STATES ====================
   const [requirePhone, setRequirePhone] = useState(false);
   const [requireEmail, setRequireEmail] = useState(false);
@@ -87,6 +90,8 @@ export default function ReportsExcel() {
       if (take) url += `take&`;
       if (repayment) url += `repayment&`;
       if (purchase) url += `purchase&`;
+      if (startDateGeneral) url += `start_date=${startDateGeneral}&`;
+      if (endDateGeneral) url += `end_date=${endDateGeneral}&`;
 
       url = url.replace(/&$/, '');
       console.log('Original Report URL:', url);
@@ -233,6 +238,8 @@ export default function ReportsExcel() {
     setRepayment(false);
     setPurchase(false);
     setReportType('');
+    setStartDateGeneral('');
+    setEndDateGeneral('');
   };
 
   const handleClearLoanOnlyFilters = () => {
@@ -334,6 +341,28 @@ export default function ReportsExcel() {
                   <span className="text-sm text-blue-700">{label}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-blue-800 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDateGeneral}
+                onChange={(e) => setStartDateGeneral(e.target.value)}
+                className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-blue-800 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDateGeneral}
+                onChange={(e) => setEndDateGeneral(e.target.value)}
+                className="w-full bg-white border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
 
